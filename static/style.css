@@ -1,0 +1,148 @@
+:root {
+    --nextura-orange: #ff4500;
+    --nextura-black: #0b0b0b;
+    --nextura-dark: #151515;
+    --nextura-gray: #b5b5b5;
+}
+
+/* Global */
+body {
+    background-color: var(--nextura-black) !important;
+    color: white;
+}
+
+/* Cards */
+.card {
+    background-color: var(--nextura-dark);
+    color: white;
+    border: none;
+}
+
+/* Inputs */
+.form-control {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    color: white;
+}
+
+.form-control:focus {
+    background-color: #1e1e1e;
+    border-color: var(--nextura-orange);
+    box-shadow: none;
+    color: white;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-success {
+    background-color: var(--nextura-orange);
+    border: none;
+}
+
+.btn-primary:hover,
+.btn-success:hover {
+    background-color: #ff5722;
+}
+
+/* Links */
+a {
+    color: var(--nextura-orange);
+    text-decoration: none;
+}
+
+a:hover {
+    color: #ff7043;
+}
+
+/* Sent messages (you) */
+.chat-me {
+    background-color: #ff4500;   /* Orange-red bubble */
+    color: #000000;              /* Black text for readability */
+    padding: 10px 15px;
+    border-radius: 20px 20px 0 20px; /* Rounded bubble shape */
+    display: inline-block;
+    max-width: 70%;
+    word-wrap: break-word;
+}
+
+/* Received messages (other user) */
+.chat-them {
+    background-color: #2a2a2a;  /* Dark gray bubble */
+    color: #ffffff;              /* White text */
+    padding: 10px 15px;
+    border-radius: 20px 20px 20px 0; /* Rounded bubble shape */
+    display: inline-block;
+    max-width: 70%;
+    word-wrap: break-word;
+}
+
+
+.chat-me:hover {
+    background-color: #e03e00; /* Darker orange-red */
+}
+
+.text-end, .text-start {
+    margin-bottom: 8px;
+}
+.chat-timestamp {
+    font-size: 0.75rem;
+    color: var(--nextura-gray);
+    margin-top: 4px;
+}
+
+/* Flash animation for sent messages */
+@keyframes flash-send {
+    0% { transform: scale(1); background-color: #ff4500; }
+    50% { transform: scale(1.05); background-color: #ff7033; } /* slightly brighter */
+    100% { transform: scale(1); background-color: #ff4500; }
+}
+
+.flash-send {
+    animation: flash-send 0.3s ease;
+}
+
+body.light-mode {
+    background-color: #f8f9fa;
+    color: #151515;
+}
+
+body.light-mode .card {
+    background-color: #ffffff;
+    color: #151515;
+}
+
+body.dark-mode {
+    background-color: #151515;
+    color: #ffffff;
+}
+
+body.dark-mode .card {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+.chat-me {
+    background-color: var(--me-dark);
+    color: white;
+}
+
+.chat-them {
+    background-color: var(--them-dark);
+    color: white;
+}
+
+body.light-mode .chat-them {
+    background-color: var(--them-light);
+    color: #111;
+}
+body.light-mode .chat-me {
+    background-color: var(--me-light);
+    color: #111;
+}
+.chat-card {
+    height: calc(100vh - 220px); /* navbar + input */
+    overflow-y: auto;
+    background-color: var(--chat-bg);
+    padding: 15px;
+    border-radius: 10px;
+}
