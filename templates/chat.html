@@ -151,8 +151,8 @@
     const chatBox = document.getElementById('chat-box');
     const input = document.getElementById('chat-input');
     const form = document.getElementById('chat-form');
-    const senderId = {{ my_id }};
-    const receiverId = {{ receiver.id }};
+    const senderId = {{ my_id | default(0) }};
+    const receiverId = {{ receiver.id | default(0) }};
 
     socket.emit('join',{sender_id:senderId,receiver_id:receiverId});
 
