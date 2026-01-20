@@ -4,4 +4,6 @@ __pycache__/
 venv/
 instance/
 *.sqlite3
+document
+document.pub
 
