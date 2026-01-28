@@ -6,7 +6,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "nextura_secret_key"
-socketio = SocketIO(app, cors_allowed_origins="*")  # Enable WebSocket support
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 online_users = set()
 
@@ -32,15 +32,11 @@ def init_db():
             sender_id INTEGER NOT NULL,
             receiver_id INTEGER NOT NULL,
             message TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-               
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'sent'
         )
-               
-               
     """)
     db.commit()
-
-    
 
 init_db()
 
@@ -117,6 +113,15 @@ def chat(user_id):
            OR (sender_id = ? AND receiver_id = ?)
         ORDER BY timestamp
     """, (session["user_id"], user_id, user_id, session["user_id"])).fetchall()
+
+    # Mark all unseen messages from this user as seen
+    db.execute("""
+        UPDATE messages
+        SET status = 'seen'
+        WHERE sender_id = ? AND receiver_id = ? AND status != 'seen'
+    """, (user_id, session['user_id']))
+    db.commit()
+
     return render_template(
         "chat.html",
         receiver=receiver,
@@ -141,32 +146,65 @@ def handle_send_message(data):
     sender_id = int(data['sender_id'])
     receiver_id = int(data['receiver_id'])
     message = data['message']
+    temp_id = data.get('id')  # frontend temporary ID
 
     db = get_db()
     cursor = db.execute(
         "INSERT INTO messages (sender_id, receiver_id, message, status) VALUES (?, ?, ?, ?)",
-        (sender_id, receiver_id, message, 'delivered')
+        (sender_id, receiver_id, message, 'sent')
     )
     db.commit()
-
     msg_id = cursor.lastrowid
+
     room = get_room_id(sender_id, receiver_id)
 
+    # Emit to sender: show sent tick immediately
+    emit('receive_message', {
+        'id': msg_id,
+        'temp_id': temp_id,
+        'sender_id': sender_id,
+        'message': message,
+        'status': 'sent'
+    }, room=room)
+
+    # Emit to receiver: message received
     emit('receive_message', {
         'id': msg_id,
         'sender_id': sender_id,
         'message': message,
-        'status': 'delivered'
+        'status': 'received'
     }, room=room)
 
-    # Send message to both users in the room
-    room = get_room_id(sender_id, receiver_id)
+    # Emit to sender with real ID
     emit('receive_message', {
+        'id': msg_id,
+        'temp_id': temp_id,
         'sender_id': sender_id,
-        'receiver_id': receiver_id,
         'message': message,
-        'timestamp': datetime.now().isoformat()
+        'status': 'sent'
     }, room=room)
+
+    # Emit to receiver as 'received'
+    emit('receive_message', {
+        'id': msg_id,
+        'sender_id': sender_id,
+        'message': message,
+        'status': 'received'
+    }, room=room)
+
+@socketio.on('message_seen')
+def handle_message_seen(data):
+    msg_id = data.get('id')
+
+    db = get_db()
+    db.execute("UPDATE messages SET status = 'seen' WHERE id = ?", (msg_id,))
+    db.commit()
+
+    # Notify sender to update tick
+    sender_id = data.get('sender_id')
+    receiver_id = data.get('receiver_id')
+    room = get_room_id(sender_id, receiver_id)
+    emit('update_status', {'id': msg_id, 'status': 'seen'}, room=room)
 
 @socketio.on('user_connected')
 def handle_user_connected(user_id):
@@ -176,31 +214,22 @@ def handle_user_connected(user_id):
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    # remove user from online list
     user_id = session.get('user_id')
     if user_id in online_users:
         online_users.remove(user_id)
     emit('status_update', list(online_users), broadcast=True)
 
-@socketio.on('mark_seen')
-def mark_seen(data):
+@socketio.on('typing')
+def handle_typing(data):
     sender_id = int(data['sender_id'])
     receiver_id = int(data['receiver_id'])
-
-    db = get_db()
-    db.execute("""
-        UPDATE messages
-        SET status = 'seen'
-        WHERE sender_id = ? AND receiver_id = ?
-    """, (sender_id, receiver_id))
-    db.commit()
+    is_typing = data['typing']  # True or False
 
     room = get_room_id(sender_id, receiver_id)
-
-    emit('messages_seen', {
-        'sender_id': sender_id
+    emit('display_typing', {
+        'sender_id': sender_id,
+        'typing': is_typing
     }, room=room)
-
 
 # -------------------- Run App --------------------
 if __name__ == "__main__":
