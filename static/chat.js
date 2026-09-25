@@ -1,8 +1,8 @@
-
 console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 (() => {
     "use strict";
+
 
     // =========================================================
     // USER / CHAT INFORMATION
@@ -43,6 +43,9 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
     const chatBox =
         document.getElementById("chat-box");
+
+    const sendMessageBtn =
+        document.getElementById("send-message-btn");
 
     const emojiBtn =
         document.getElementById("emoji-btn");
@@ -88,7 +91,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
-    // REPLY ELEMENTS
+    // REPLY / EDIT COMPOSER
     // =========================================================
 
     const replyComposer =
@@ -109,12 +112,17 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
     // =========================================================
 
     let replyToId = null;
-
     let replyToType = null;
-
     let replyToText = "";
-
     let replyToSenderName = "";
+
+
+    // =========================================================
+    // EDIT STATE
+    // =========================================================
+
+    let editingMessageId = null;
+    let editingOriginalText = "";
 
 
     console.log("💬 Chat form:", chatForm);
@@ -176,10 +184,99 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
+    // CLOSE ALL MESSAGE MENUS
+    // =========================================================
+
+    function closeAllMessageMenus(exceptMenu = null) {
+
+        if (!chatBox) {
+            return;
+        }
+
+        const menus =
+            chatBox.querySelectorAll(
+                ".message-menu.show"
+            );
+
+        menus.forEach(function (menu) {
+
+            if (menu !== exceptMenu) {
+
+                menu.classList.remove(
+                    "show"
+                );
+            }
+        });
+    }
+
+
+    // =========================================================
+    // GET MESSAGE ELEMENT
+    // =========================================================
+
+    function getMessageElement(messageId) {
+
+        if (!chatBox || !messageId) {
+            return null;
+        }
+
+        return chatBox.querySelector(
+            `[data-message-id="${messageId}"]`
+        );
+    }
+
+
+    // =========================================================
+    // GET MESSAGE ROW
+    // =========================================================
+
+    function getMessageRow(messageId) {
+
+        const messageElement =
+            getMessageElement(messageId);
+
+        if (!messageElement) {
+            return null;
+        }
+
+        return messageElement.closest(
+            ".nextura-message-row"
+        );
+    }
+
+
+    // =========================================================
+    // GET MESSAGE TEXT
+    // =========================================================
+
+    function getTextFromMessageElement(messageElement) {
+
+        if (!messageElement) {
+            return "";
+        }
+
+        const textElement =
+            messageElement.querySelector(
+                ".message-text"
+            );
+
+        if (textElement) {
+            return textElement.textContent || "";
+        }
+
+        return messageElement.dataset.messagePreview || "";
+    }
+
+
+    // =========================================================
     // REPLY HELPERS
     // =========================================================
 
     function getReplyPreviewText(data) {
+
+        if (data.deleted_for_everyone) {
+            return "🚫 This message was deleted";
+        }
 
         if (
             data.message_type === "voice" ||
@@ -205,6 +302,14 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 "active"
             );
 
+            replyComposer.classList.remove(
+                "show"
+            );
+
+            replyComposer.classList.remove(
+                "editing"
+            );
+
             replyComposer.setAttribute(
                 "aria-hidden",
                 "true"
@@ -225,11 +330,33 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
     }
 
 
+    // =========================================================
+    // START REPLY
+    // =========================================================
+
     function startReply(messageElement) {
 
         if (!messageElement) {
             return;
         }
+
+        if (
+            messageElement.dataset.deletedForEveryone ===
+            "1"
+        ) {
+
+            console.log(
+                "🚫 Cannot reply to deleted message."
+            );
+
+            return;
+        }
+
+
+        if (editingMessageId) {
+            cancelEditing();
+        }
+
 
         const messageId =
             Number(
@@ -240,13 +367,16 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             return;
         }
 
+
         const messageType =
             messageElement.dataset.messageType ||
             "text";
 
+
         let previewText =
             messageElement.dataset.messagePreview ||
             "";
+
 
         const senderName =
             messageElement.dataset.senderName ||
@@ -263,22 +393,23 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
         replyToId = messageId;
-
         replyToType = messageType;
-
         replyToText = previewText;
-
         replyToSenderName = senderName;
 
 
         if (replyComposer) {
 
             replyComposer.classList.add(
+                "show"
+            );
+
+            replyComposer.classList.add(
                 "active"
             );
 
             replyComposer.classList.remove(
-                "d-none"
+                "editing"
             );
 
             replyComposer.setAttribute(
@@ -305,7 +436,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
         if (chatInput) {
-
             chatInput.focus();
         }
 
@@ -317,16 +447,20 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
     }
 
 
+    // =========================================================
+    // SCROLL TO MESSAGE
+    // =========================================================
+
     function scrollToMessage(messageId) {
 
         if (!chatBox || !messageId) {
             return;
         }
 
+
         const target =
-            chatBox.querySelector(
-                `[data-message-id="${messageId}"]`
-            );
+            getMessageElement(messageId);
+
 
         if (!target) {
             return;
@@ -344,21 +478,399 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         );
 
 
-        setTimeout(
-            function () {
+        setTimeout(function () {
 
-                target.classList.remove(
-                    "reply-highlight"
+            target.classList.remove(
+                "reply-highlight"
+            );
+
+        }, 1500);
+    }
+
+
+    // =========================================================
+    // START EDITING
+    // =========================================================
+
+    function startEditing(messageElement) {
+
+        if (!messageElement) {
+            return;
+        }
+
+
+        const messageId =
+            Number(
+                messageElement.dataset.messageId
+            );
+
+
+        if (!messageId) {
+            return;
+        }
+
+
+        const messageType =
+            messageElement.dataset.messageType ||
+            "text";
+
+
+        const messageSenderId =
+            Number(
+                messageElement.dataset.senderId
+            );
+
+
+        const deleted =
+            messageElement.dataset.deletedForEveryone ===
+            "1";
+
+
+        // -----------------------------------------------------
+        // SECURITY / VALIDATION
+        // -----------------------------------------------------
+
+        if (messageSenderId !== senderId) {
+
+            console.log(
+                "🚫 You can only edit your own messages."
+            );
+
+            return;
+        }
+
+
+        if (messageType === "voice") {
+
+            console.log(
+                "🚫 Voice messages cannot be edited."
+            );
+
+            return;
+        }
+
+
+        if (deleted) {
+
+            console.log(
+                "🚫 Deleted messages cannot be edited."
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // Cancel reply first
+        // -----------------------------------------------------
+
+        replyToId = null;
+        replyToType = null;
+        replyToText = "";
+        replyToSenderName = "";
+
+
+        // -----------------------------------------------------
+        // Get current message text
+        // -----------------------------------------------------
+
+        const currentText =
+            getTextFromMessageElement(
+                messageElement
+            );
+
+
+        editingMessageId =
+            messageId;
+
+
+        editingOriginalText =
+            currentText;
+
+
+        // -----------------------------------------------------
+        // Show editing composer
+        // -----------------------------------------------------
+
+        if (replyComposer) {
+
+            replyComposer.classList.add(
+                "show"
+            );
+
+            replyComposer.classList.add(
+                "editing"
+            );
+
+            replyComposer.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+        }
+
+
+        if (replyComposerLabel) {
+
+            replyComposerLabel.textContent =
+                "Editing message";
+        }
+
+
+        if (replyComposerText) {
+
+            replyComposerText.textContent =
+                currentText;
+        }
+
+
+        // -----------------------------------------------------
+        // Load message into input
+        // -----------------------------------------------------
+
+        if (chatInput) {
+
+            chatInput.value =
+                currentText;
+
+            chatInput.focus();
+
+            try {
+
+                chatInput.setSelectionRange(
+                    chatInput.value.length,
+                    chatInput.value.length
                 );
 
-            },
-            1500
+            } catch (error) {}
+        }
+
+
+        // -----------------------------------------------------
+        // Change send button appearance
+        // -----------------------------------------------------
+
+        updateComposerForEdit();
+
+
+        // -----------------------------------------------------
+        // Close menus
+        // -----------------------------------------------------
+
+        closeAllMessageMenus();
+
+
+        // -----------------------------------------------------
+        // Scroll message into view
+        // -----------------------------------------------------
+
+        messageElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+
+
+        console.log(
+            "✏️ Editing message:",
+            messageId
         );
     }
 
 
     // =========================================================
-    // ADD REPLY PREVIEW
+    // UPDATE COMPOSER FOR EDIT MODE
+    // =========================================================
+
+    function updateComposerForEdit() {
+
+        if (sendMessageBtn) {
+
+            sendMessageBtn.innerHTML =
+                '<i class="bi bi-check-lg"></i>';
+
+            sendMessageBtn.title =
+                "Save edited message";
+        }
+
+
+        if (chatInput) {
+
+            chatInput.placeholder =
+                "Edit message...";
+        }
+
+
+        if (voiceBtn) {
+
+            voiceBtn.disabled =
+                true;
+
+            voiceBtn.style.opacity =
+                "0.45";
+
+            voiceBtn.title =
+                "Voice messages cannot be used while editing";
+        }
+    }
+
+
+    // =========================================================
+    // UPDATE COMPOSER FOR NORMAL MODE
+    // =========================================================
+
+    function updateComposerForNormal() {
+
+        if (sendMessageBtn) {
+
+            sendMessageBtn.innerHTML =
+                '<i class="bi bi-send-fill"></i>';
+
+            sendMessageBtn.title =
+                "Send message";
+        }
+
+
+        if (chatInput) {
+
+            chatInput.placeholder =
+                "Type a message...";
+        }
+
+
+        if (voiceBtn) {
+
+            voiceBtn.disabled =
+                false;
+
+            voiceBtn.style.opacity =
+                "";
+
+            voiceBtn.title =
+                "Voice message";
+        }
+    }
+
+
+    // =========================================================
+    // CANCEL EDITING
+    // =========================================================
+
+    function cancelEditing() {
+
+        if (!editingMessageId) {
+            return;
+        }
+
+
+        console.log(
+            "❌ Cancelling edit:",
+            editingMessageId
+        );
+
+
+        editingMessageId =
+            null;
+
+
+        editingOriginalText =
+            "";
+
+
+        if (chatInput) {
+            chatInput.value = "";
+        }
+
+
+        clearReply();
+
+        updateComposerForNormal();
+
+
+        if (chatInput) {
+            chatInput.focus();
+        }
+    }
+
+
+    // =========================================================
+    // SAVE EDITED MESSAGE
+    // =========================================================
+
+    function saveEditedMessage() {
+
+        if (!editingMessageId) {
+            return;
+        }
+
+
+        if (!chatInput) {
+            return;
+        }
+
+
+        const newText =
+            chatInput.value.trim();
+
+
+        if (!newText) {
+
+            alert(
+                "Edited message cannot be empty."
+            );
+
+            return;
+        }
+
+
+        if (newText.length > 5000) {
+
+            alert(
+                "Message is too long. Maximum is 5000 characters."
+            );
+
+            return;
+        }
+
+
+        if (
+            newText ===
+            editingOriginalText
+        ) {
+
+            cancelEditing();
+
+            return;
+        }
+
+
+        console.log(
+            "💾 Saving edited message:",
+            editingMessageId
+        );
+
+
+        socket.emit(
+            "edit_message",
+            {
+                message_id:
+                    editingMessageId,
+
+                message:
+                    newText
+            }
+        );
+
+
+        // -----------------------------------------------------
+        // Do NOT immediately change the bubble.
+        //
+        // The backend sends message_edited to both users.
+        // This keeps both clients synchronized.
+        // -----------------------------------------------------
+    }
+
+
+    // =========================================================
+    // CREATE REPLY PREVIEW
     // =========================================================
 
     function createReplyPreview(data, isMine) {
@@ -371,6 +883,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         const preview =
             document.createElement("div");
 
+
         preview.className =
             "message-reply-preview";
 
@@ -381,6 +894,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
         const name =
             document.createElement("span");
+
 
         name.className =
             "reply-preview-name";
@@ -394,12 +908,15 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         } else {
 
             name.textContent =
-                isMine ? "You" : "Replied message";
+                isMine
+                    ? "You"
+                    : "Replied message";
         }
 
 
         const text =
             document.createElement("span");
+
 
         text.className =
             "reply-preview-text";
@@ -407,6 +924,10 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
         text.textContent =
             data.reply_preview ||
+            getReplyPreviewText(
+                data.reply_to_message ||
+                data
+            ) ||
             "Message";
 
 
@@ -433,7 +954,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
-    // ADD REPLY BUTTON
+    // CREATE REPLY BUTTON
     // =========================================================
 
     function createReplyButton(messageData) {
@@ -476,10 +997,17 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 event.stopPropagation();
 
 
-                const messageElement =
+                const wrapper =
                     button.closest(
-                        "[data-message-id]"
+                        ".nextura-message-wrapper"
                     );
+
+
+                const messageElement =
+                    wrapper
+                        ?.querySelector(
+                            ".chat-bubble"
+                        );
 
 
                 startReply(
@@ -494,7 +1022,310 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
-    // APPEND MESSAGE TO CHAT
+    // CREATE MESSAGE MENU
+    // =========================================================
+
+    function createMessageMenu(messageData, isMine) {
+
+        const menu =
+            document.createElement("div");
+
+
+        menu.className =
+            "message-menu";
+
+
+        menu.dataset.menuMessageId =
+            String(messageData.id);
+
+
+        // -----------------------------------------------------
+        // EDIT
+        // -----------------------------------------------------
+
+        if (
+            isMine &&
+            messageData.message_type !== "voice" &&
+            !messageData.deleted_for_everyone
+        ) {
+
+            const editButton =
+                document.createElement("button");
+
+
+            editButton.type =
+                "button";
+
+
+            editButton.className =
+                "edit-message-btn";
+
+
+            editButton.dataset.messageId =
+                String(messageData.id);
+
+
+            editButton.innerHTML =
+                `
+                    <i class="bi bi-pencil-square"></i>
+                    <span>Edit</span>
+                `;
+
+
+            editButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+                    closeAllMessageMenus();
+
+                    const messageElement =
+                        getMessageElement(
+                            Number(
+                                messageData.id
+                            )
+                        );
+
+
+                    startEditing(
+                        messageElement
+                    );
+                }
+            );
+
+
+            menu.appendChild(
+                editButton
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // DELETE FOR ME
+        // -----------------------------------------------------
+
+        const deleteForMe =
+            document.createElement("button");
+
+
+        deleteForMe.type =
+            "button";
+
+
+        deleteForMe.className =
+            "delete-for-me-btn";
+
+
+        deleteForMe.dataset.messageId =
+            String(messageData.id);
+
+
+        deleteForMe.innerHTML =
+            `
+                <i class="bi bi-trash"></i>
+                <span>Delete for me</span>
+            `;
+
+
+        deleteForMe.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+                event.stopPropagation();
+
+                closeAllMessageMenus();
+
+                requestDeleteForMe(
+                    Number(messageData.id)
+                );
+            }
+        );
+
+
+        menu.appendChild(
+            deleteForMe
+        );
+
+
+        // -----------------------------------------------------
+        // DELETE FOR EVERYONE
+        // -----------------------------------------------------
+
+        if (
+            isMine &&
+            !messageData.deleted_for_everyone
+        ) {
+
+            const deleteForEveryone =
+                document.createElement("button");
+
+
+            deleteForEveryone.type =
+                "button";
+
+
+            deleteForEveryone.className =
+                "delete-everyone delete-for-everyone-btn";
+
+
+            deleteForEveryone.dataset.messageId =
+                String(messageData.id);
+
+
+            deleteForEveryone.innerHTML =
+                `
+                    <i class="bi bi-trash3-fill"></i>
+                    <span>Delete for everyone</span>
+                `;
+
+
+            deleteForEveryone.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+                    closeAllMessageMenus();
+
+                    requestDeleteForEveryone(
+                        Number(messageData.id)
+                    );
+                }
+            );
+
+
+            menu.appendChild(
+                deleteForEveryone
+            );
+        }
+
+
+        return menu;
+    }
+
+
+    // =========================================================
+    // CREATE MESSAGE ACTIONS
+    // =========================================================
+
+    function createMessageActions(messageData, isMine) {
+
+        const actions =
+            document.createElement("div");
+
+
+        actions.className =
+            "message-actions";
+
+
+        // -----------------------------------------------------
+        // REPLY
+        // -----------------------------------------------------
+
+        if (!messageData.deleted_for_everyone) {
+
+            const replyButton =
+                createReplyButton(
+                    messageData
+                );
+
+
+            actions.appendChild(
+                replyButton
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // THREE DOT MENU
+        // -----------------------------------------------------
+
+        const menuButton =
+            document.createElement("button");
+
+
+        menuButton.type =
+            "button";
+
+
+        menuButton.className =
+            "message-menu-btn";
+
+
+        menuButton.dataset.messageId =
+            String(messageData.id);
+
+
+        menuButton.title =
+            "Message options";
+
+
+        menuButton.innerHTML =
+            '<i class="bi bi-three-dots-vertical"></i>';
+
+
+        const menu =
+            createMessageMenu(
+                messageData,
+                isMine
+            );
+
+
+        menuButton.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+                event.stopPropagation();
+
+
+                const wasOpen =
+                    menu.classList.contains(
+                        "show"
+                    );
+
+
+                closeAllMessageMenus(
+                    wasOpen
+                        ? null
+                        : menu
+                );
+
+
+                if (!wasOpen) {
+
+                    menu.classList.add(
+                        "show"
+                    );
+                }
+            }
+        );
+
+
+        actions.appendChild(
+            menuButton
+        );
+
+
+        actions.appendChild(
+            menu
+        );
+
+
+        return actions;
+    }
+
+
+    // =========================================================
+    // APPEND MESSAGE
     // =========================================================
 
     function appendMessage(data) {
@@ -507,6 +1338,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         const messageSenderId =
             Number(data.sender_id);
 
+
         const messageReceiverId =
             Number(data.receiver_id);
 
@@ -516,15 +1348,16 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
         // -----------------------------------------------------
-        // Prevent duplicate message rendering
+        // Prevent duplicates
         // -----------------------------------------------------
 
         if (data.id) {
 
             const existingMessage =
-                chatBox.querySelector(
-                    `[data-message-id="${data.id}"]`
+                getMessageElement(
+                    data.id
                 );
+
 
             if (existingMessage) {
                 return;
@@ -540,6 +1373,12 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             isMine
                 ? "d-flex justify-content-end mb-2 nextura-message-row sent"
                 : "d-flex justify-content-start mb-2 nextura-message-row received";
+
+
+        wrapper.dataset.messageRowId =
+            data.id
+                ? String(data.id)
+                : "";
 
 
         const messageWrapper =
@@ -560,8 +1399,8 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
         bubble.className =
             isMine
-                ? "nextura-message sent"
-                : "nextura-message received";
+                ? "chat-bubble me"
+                : "chat-bubble other";
 
 
         bubble.dataset.messageId =
@@ -592,159 +1431,225 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             (isMine ? "You" : "");
 
 
-        bubble.style.maxWidth =
-            "75%";
+        bubble.dataset.deletedForEveryone =
+            data.deleted_for_everyone
+                ? "1"
+                : "0";
 
-        bubble.style.padding =
-            "10px 14px";
 
-        bubble.style.borderRadius =
-            "15px";
-
-        bubble.style.wordBreak =
-            "break-word";
+        bubble.dataset.edited =
+            data.edited
+                ? "1"
+                : "0";
 
 
         // =====================================================
-        // REPLY PREVIEW
+        // DELETED-FOR-EVERYONE
         // =====================================================
 
-        const replyPreview =
-            createReplyPreview(
-                data,
-                isMine
+        if (data.deleted_for_everyone) {
+
+            bubble.classList.add(
+                "deleted-bubble"
             );
 
 
-        if (replyPreview) {
-
-            bubble.appendChild(
-                replyPreview
-            );
-        }
+            const deleted =
+                document.createElement("div");
 
 
-        // =====================================================
-        // VOICE MESSAGE
-        // =====================================================
-
-        if (
-            data.message_type === "voice" ||
-            data.audio
-        ) {
-
-            const audio =
-                document.createElement("audio");
+            deleted.className =
+                "deleted-message";
 
 
-            audio.controls =
-                true;
+            const icon =
+                document.createElement("i");
 
 
-            audio.preload =
-                "metadata";
+            icon.className =
+                "bi bi-slash-circle";
 
 
-            audio.style.maxWidth =
-                "240px";
+            const span =
+                document.createElement("span");
 
 
-            if (data.audio) {
+            span.textContent =
+                "This message was deleted";
 
-                audio.src =
-                    data.audio;
 
-            } else if (data.message) {
-
-                audio.src =
-                    "/static/uploads/voices/" +
-                    data.message;
-            }
+            deleted.appendChild(icon);
+            deleted.appendChild(span);
 
 
             bubble.appendChild(
-                audio
+                deleted
             );
 
         }
 
         // =====================================================
-        // TEXT MESSAGE
+        // NORMAL MESSAGE
         // =====================================================
 
         else {
 
-            const text =
-                document.createElement("span");
+            // -------------------------------------------------
+            // REPLY PREVIEW
+            // -------------------------------------------------
+
+            const replyPreview =
+                createReplyPreview(
+                    data,
+                    isMine
+                );
 
 
-            text.className =
-                "message-text";
+            if (replyPreview) {
+
+                bubble.appendChild(
+                    replyPreview
+                );
+            }
 
 
-            text.textContent =
-                data.message || "";
+            // -------------------------------------------------
+            // VOICE
+            // -------------------------------------------------
+
+            if (
+                data.message_type === "voice" ||
+                data.audio
+            ) {
+
+                const audio =
+                    document.createElement("audio");
 
 
-            bubble.appendChild(
-                text
-            );
+                audio.controls =
+                    true;
+
+
+                audio.preload =
+                    "metadata";
+
+
+                audio.style.maxWidth =
+                    "240px";
+
+
+                if (data.audio) {
+
+                    audio.src =
+                        data.audio;
+
+                } else if (data.message) {
+
+                    audio.src =
+                        "/static/uploads/voices/" +
+                        data.message;
+                }
+
+
+                bubble.appendChild(
+                    audio
+                );
+
+            }
+
+            // -------------------------------------------------
+            // TEXT
+            // -------------------------------------------------
+
+            else {
+
+                const text =
+                    document.createElement("span");
+
+
+                text.className =
+                    "message-text";
+
+
+                text.textContent =
+                    data.message || "";
+
+
+                bubble.appendChild(
+                    text
+                );
+
+
+                if (data.edited) {
+
+                    addEditedIndicator(
+                        bubble
+                    );
+                }
+            }
+
+
+            // -------------------------------------------------
+            // MESSAGE STATUS
+            // -------------------------------------------------
+
+            if (isMine) {
+
+                const status =
+                    document.createElement("small");
+
+
+                status.className =
+                    "message-status";
+
+
+                status.textContent =
+                    " ✓✓";
+
+
+                status.style.marginLeft =
+                    "6px";
+
+
+                status.style.opacity =
+                    "0.7";
+
+
+                bubble.appendChild(
+                    status
+                );
+            }
         }
 
 
         // =====================================================
-        // MESSAGE STATUS
-        // =====================================================
-
-        if (isMine) {
-
-            const status =
-                document.createElement("small");
-
-
-            status.className =
-                "message-status";
-
-
-            status.textContent =
-                " ✓✓";
-
-
-            status.style.marginLeft =
-                "6px";
-
-
-            status.style.opacity =
-                "0.7";
-
-
-            bubble.appendChild(
-                status
-            );
-        }
-
-
-        // =====================================================
-        // REPLY BUTTON
+        // MESSAGE ACTIONS
         // =====================================================
 
         if (data.id) {
 
-            const replyButton =
-                createReplyButton(
-                    data
+            const actions =
+                createMessageActions(
+                    data,
+                    isMine
                 );
 
 
-            bubble.appendChild(
-                replyButton
+            messageWrapper.appendChild(
+                bubble
+            );
+
+
+            messageWrapper.appendChild(
+                actions
+            );
+
+        } else {
+
+            messageWrapper.appendChild(
+                bubble
             );
         }
-
-
-        messageWrapper.appendChild(
-            bubble
-        );
 
 
         wrapper.appendChild(
@@ -762,7 +1667,308 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
-    // EXISTING SERVER-SIDE MESSAGE REPLY BUTTONS
+    // ADD EDITED INDICATOR
+    // =========================================================
+
+    function addEditedIndicator(bubble) {
+
+        if (!bubble) {
+            return;
+        }
+
+
+        const existing =
+            bubble.querySelector(
+                ".edited-indicator"
+            );
+
+
+        if (existing) {
+            return;
+        }
+
+
+        const indicator =
+            document.createElement("span");
+
+
+        indicator.className =
+            "edited-indicator";
+
+
+        indicator.textContent =
+            "edited";
+
+
+        bubble.appendChild(
+            indicator
+        );
+    }
+
+
+    // =========================================================
+    // UPDATE REPLY PREVIEWS
+    // =========================================================
+
+    function updateReplyPreviews(
+        messageId,
+        newText
+    ) {
+
+        if (!chatBox) {
+            return;
+        }
+
+
+        const previews =
+            chatBox.querySelectorAll(
+                `.message-reply-preview[data-reply-target="${messageId}"]`
+            );
+
+
+        previews.forEach(
+            function (preview) {
+
+                const text =
+                    preview.querySelector(
+                        ".reply-preview-text"
+                    );
+
+
+                if (text) {
+
+                    text.textContent =
+                        newText;
+                }
+            }
+        );
+    }
+
+
+    // =========================================================
+    // UPDATE EDITED MESSAGE IN DOM
+    // =========================================================
+
+    function updateEditedMessage(data) {
+
+        const messageId =
+            Number(
+                data.message_id ||
+                data.id
+            );
+
+
+        if (!messageId) {
+            return;
+        }
+
+
+        const messageElement =
+            getMessageElement(
+                messageId
+            );
+
+
+        if (!messageElement) {
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // Security: only text
+        // -----------------------------------------------------
+
+        if (
+            messageElement.dataset.messageType !==
+            "text"
+        ) {
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // Get new text
+        // -----------------------------------------------------
+
+        const newText =
+            String(
+                data.message !== undefined
+                    ? data.message
+                    : data.text !== undefined
+                        ? data.text
+                        : ""
+            );
+
+
+        // -----------------------------------------------------
+        // Update data
+        // -----------------------------------------------------
+
+        messageElement.dataset.edited =
+            "1";
+
+
+        messageElement.dataset.messagePreview =
+            newText;
+
+
+        // -----------------------------------------------------
+        // Find/create message text
+        // -----------------------------------------------------
+
+        let textElement =
+            messageElement.querySelector(
+                ".message-text"
+            );
+
+
+        if (!textElement) {
+
+            textElement =
+                document.createElement("span");
+
+            textElement.className =
+                "message-text";
+
+            messageElement.appendChild(
+                textElement
+            );
+        }
+
+
+        // textContent prevents HTML injection.
+        textElement.textContent =
+            newText;
+
+
+        // -----------------------------------------------------
+        // Remove old edited indicator
+        // -----------------------------------------------------
+
+        const oldIndicator =
+            messageElement.querySelector(
+                ".edited-indicator"
+            );
+
+
+        if (oldIndicator) {
+
+            oldIndicator.remove();
+        }
+
+
+        // -----------------------------------------------------
+        // Add edited indicator
+        // -----------------------------------------------------
+
+        addEditedIndicator(
+            messageElement
+        );
+
+
+        // -----------------------------------------------------
+        // Update reply previews
+        // -----------------------------------------------------
+
+        updateReplyPreviews(
+            messageId,
+            newText
+        );
+
+
+        // -----------------------------------------------------
+        // Update reply-preview data of this message
+        // -----------------------------------------------------
+
+        const replyPreview =
+            messageElement.querySelector(
+                ".message-reply-preview"
+            );
+
+
+        // Nothing else required here.
+        // The message itself now carries the new preview.
+        void replyPreview;
+
+
+        console.log(
+            "✅ Message updated:",
+            messageId
+        );
+    }
+
+
+    // =========================================================
+    // MESSAGE EDITED EVENT
+    // =========================================================
+
+    socket.on(
+        "message_edited",
+        function (data) {
+
+            console.log(
+                "✏️ message_edited:",
+                data
+            );
+
+
+            const messageId =
+                Number(
+                    data.message_id ||
+                    data.id
+                );
+
+
+            if (!messageId) {
+                return;
+            }
+
+
+            updateEditedMessage(
+                data
+            );
+
+
+            // -------------------------------------------------
+            // If this is the user who initiated the edit,
+            // clear edit mode after server confirmation.
+            // -------------------------------------------------
+
+            if (
+                editingMessageId ===
+                messageId
+            ) {
+
+                editingMessageId =
+                    null;
+
+
+                editingOriginalText =
+                    "";
+
+
+                if (chatInput) {
+
+                    chatInput.value =
+                        "";
+                }
+
+
+                clearReply();
+
+                updateComposerForNormal();
+
+
+                if (chatInput) {
+                    chatInput.focus();
+                }
+            }
+        }
+    );
+
+
+    // =========================================================
+    // EXISTING SERVER-SIDE REPLY BUTTONS
     // =========================================================
 
     function initializeExistingReplyButtons() {
@@ -802,10 +2008,17 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                         event.stopPropagation();
 
 
-                        const messageElement =
+                        const wrapper =
                             button.closest(
-                                "[data-message-id]"
+                                ".nextura-message-wrapper"
                             );
+
+
+                        const messageElement =
+                            wrapper
+                                ?.querySelector(
+                                    ".chat-bubble"
+                                );
 
 
                         startReply(
@@ -863,11 +2076,662 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
     }
 
 
+    // =========================================================
+    // EXISTING MESSAGE MENUS
+    // =========================================================
+
+    function initializeExistingMessageMenus() {
+
+        if (!chatBox) {
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // MENU BUTTONS
+        // -----------------------------------------------------
+
+        const menuButtons =
+            chatBox.querySelectorAll(
+                ".message-menu-btn"
+            );
+
+
+        menuButtons.forEach(
+            function (button) {
+
+                if (
+                    button.dataset.menuInitialized ===
+                    "true"
+                ) {
+                    return;
+                }
+
+
+                button.dataset.menuInitialized =
+                    "true";
+
+
+                const menu =
+                    button
+                        .closest(
+                            ".message-actions"
+                        )
+                        ?.querySelector(
+                            ".message-menu"
+                        );
+
+
+                if (!menu) {
+                    return;
+                }
+
+
+                button.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        const wasOpen =
+                            menu.classList.contains(
+                                "show"
+                            );
+
+
+                        closeAllMessageMenus(
+                            wasOpen
+                                ? null
+                                : menu
+                        );
+
+
+                        if (!wasOpen) {
+
+                            menu.classList.add(
+                                "show"
+                            );
+                        }
+                    }
+                );
+            }
+        );
+
+
+        // -----------------------------------------------------
+        // EDIT BUTTONS
+        // -----------------------------------------------------
+
+        const editButtons =
+            chatBox.querySelectorAll(
+                ".edit-message-btn"
+            );
+
+
+        editButtons.forEach(
+            function (button) {
+
+                if (
+                    button.dataset.editInitialized ===
+                    "true"
+                ) {
+                    return;
+                }
+
+
+                button.dataset.editInitialized =
+                    "true";
+
+
+                button.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        closeAllMessageMenus();
+
+
+                        const messageId =
+                            Number(
+                                button.dataset.messageId
+                            );
+
+
+                        const messageElement =
+                            getMessageElement(
+                                messageId
+                            );
+
+
+                        startEditing(
+                            messageElement
+                        );
+                    }
+                );
+            }
+        );
+
+
+        // -----------------------------------------------------
+        // DELETE FOR ME
+        // -----------------------------------------------------
+
+        const deleteForMeButtons =
+            chatBox.querySelectorAll(
+                ".delete-for-me-btn"
+            );
+
+
+        deleteForMeButtons.forEach(
+            function (button) {
+
+                if (
+                    button.dataset.deleteInitialized ===
+                    "true"
+                ) {
+                    return;
+                }
+
+
+                button.dataset.deleteInitialized =
+                    "true";
+
+
+                button.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        closeAllMessageMenus();
+
+
+                        const messageId =
+                            Number(
+                                button.dataset.messageId
+                            );
+
+
+                        requestDeleteForMe(
+                            messageId
+                        );
+                    }
+                );
+            }
+        );
+
+
+        // -----------------------------------------------------
+        // DELETE FOR EVERYONE
+        // -----------------------------------------------------
+
+        const deleteForEveryoneButtons =
+            chatBox.querySelectorAll(
+                ".delete-for-everyone-btn"
+            );
+
+
+        deleteForEveryoneButtons.forEach(
+            function (button) {
+
+                if (
+                    button.dataset.deleteInitialized ===
+                    "true"
+                ) {
+                    return;
+                }
+
+
+                button.dataset.deleteInitialized =
+                    "true";
+
+
+                button.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        closeAllMessageMenus();
+
+
+                        const messageId =
+                            Number(
+                                button.dataset.messageId
+                            );
+
+
+                        requestDeleteForEveryone(
+                            messageId
+                        );
+                    }
+                );
+            }
+        );
+    }
+
+
     initializeExistingReplyButtons();
+
+    initializeExistingMessageMenus();
 
 
     // =========================================================
-    // CANCEL REPLY
+    // DELETE CONFIRMATION
+    // =========================================================
+
+    function requestDeleteForMe(messageId) {
+
+        if (!messageId) {
+            return;
+        }
+
+
+        const confirmed =
+            window.confirm(
+                "Delete this message for you?"
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        if (
+            Number(editingMessageId) ===
+            Number(messageId)
+        ) {
+            cancelEditing();
+        }
+
+
+        console.log(
+            "🗑️ Deleting message for me:",
+            messageId
+        );
+
+
+        socket.emit(
+            "delete_message",
+            {
+                message_id:
+                    messageId,
+
+                delete_type:
+                    "me"
+            }
+        );
+    }
+
+
+    function requestDeleteForEveryone(messageId) {
+
+        if (!messageId) {
+            return;
+        }
+
+
+        const confirmed =
+            window.confirm(
+                "Delete this message for everyone?"
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        if (
+            Number(editingMessageId) ===
+            Number(messageId)
+        ) {
+            cancelEditing();
+        }
+
+
+        console.log(
+            "🗑️ Deleting message for everyone:",
+            messageId
+        );
+
+
+        socket.emit(
+            "delete_message",
+            {
+                message_id:
+                    messageId,
+
+                delete_type:
+                    "everyone"
+            }
+        );
+    }
+
+
+    // =========================================================
+    // DELETE FOR ME
+    // =========================================================
+
+    socket.on(
+        "message_deleted_for_me",
+        function (data) {
+
+            console.log(
+                "🗑️ message_deleted_for_me:",
+                data
+            );
+
+
+            const messageId =
+                Number(
+                    data.message_id ||
+                    data.id
+                );
+
+
+            if (!messageId) {
+                return;
+            }
+
+
+            const row =
+                getMessageRow(
+                    messageId
+                );
+
+
+            if (!row) {
+                return;
+            }
+
+
+            if (
+                Number(replyToId) ===
+                messageId
+            ) {
+
+                clearReply();
+            }
+
+
+            if (
+                Number(editingMessageId) ===
+                messageId
+            ) {
+
+                cancelEditing();
+            }
+
+
+            row.style.opacity =
+                "0";
+
+
+            row.style.transform =
+                "translateX(10px)";
+
+
+            row.style.transition =
+                "opacity 0.2s ease, transform 0.2s ease";
+
+
+            setTimeout(
+                function () {
+
+                    row.remove();
+
+                },
+                220
+            );
+
+
+            console.log(
+                "✅ Message removed for current user."
+            );
+        }
+    );
+
+
+    // =========================================================
+    // DELETE FOR EVERYONE
+    // =========================================================
+
+    socket.on(
+        "message_deleted_for_everyone",
+        function (data) {
+
+            console.log(
+                "🗑️ message_deleted_for_everyone:",
+                data
+            );
+
+
+            const messageId =
+                Number(
+                    data.message_id ||
+                    data.id
+                );
+
+
+            if (!messageId) {
+                return;
+            }
+
+
+            const messageElement =
+                getMessageElement(
+                    messageId
+                );
+
+
+            if (!messageElement) {
+                return;
+            }
+
+
+            if (
+                Number(replyToId) ===
+                messageId
+            ) {
+
+                clearReply();
+            }
+
+
+            if (
+                Number(editingMessageId) ===
+                messageId
+            ) {
+
+                cancelEditing();
+            }
+
+
+            // -------------------------------------------------
+            // Mark deleted
+            // -------------------------------------------------
+
+            messageElement.dataset.deletedForEveryone =
+                "1";
+
+
+            messageElement.classList.add(
+                "deleted-bubble"
+            );
+
+
+            // -------------------------------------------------
+            // Stop audio
+            // -------------------------------------------------
+
+            const audio =
+                messageElement.querySelector(
+                    "audio"
+                );
+
+
+            if (audio) {
+
+                audio.pause();
+
+                audio.removeAttribute(
+                    "src"
+                );
+
+                audio.load();
+            }
+
+
+            // -------------------------------------------------
+            // Replace content
+            // -------------------------------------------------
+
+            messageElement.innerHTML =
+                "";
+
+
+            const deleted =
+                document.createElement("div");
+
+
+            deleted.className =
+                "deleted-message";
+
+
+            const icon =
+                document.createElement("i");
+
+
+            icon.className =
+                "bi bi-slash-circle";
+
+
+            const text =
+                document.createElement("span");
+
+
+            text.textContent =
+                "This message was deleted";
+
+
+            deleted.appendChild(icon);
+            deleted.appendChild(text);
+
+
+            messageElement.appendChild(
+                deleted
+            );
+
+
+            // -------------------------------------------------
+            // Disable reply
+            // -------------------------------------------------
+
+            const actions =
+                messageElement
+                    .closest(
+                        ".nextura-message-wrapper"
+                    )
+                    ?.querySelector(
+                        ".message-actions"
+                    );
+
+
+            if (actions) {
+
+                const replyButton =
+                    actions.querySelector(
+                        ".reply-message-btn"
+                    );
+
+
+                if (replyButton) {
+
+                    replyButton.remove();
+                }
+
+
+                const editButton =
+                    actions.querySelector(
+                        ".edit-message-btn"
+                    );
+
+
+                if (editButton) {
+
+                    editButton.remove();
+                }
+
+
+                const deleteEveryoneButton =
+                    actions.querySelector(
+                        ".delete-for-everyone-btn"
+                    );
+
+
+                if (deleteEveryoneButton) {
+
+                    deleteEveryoneButton.remove();
+                }
+            }
+
+
+            // -------------------------------------------------
+            // Update any reply previews
+            // -------------------------------------------------
+
+            updateReplyPreviews(
+                messageId,
+                "🚫 This message was deleted"
+            );
+
+
+            console.log(
+                "✅ Message changed to deleted placeholder."
+            );
+        }
+    );
+
+
+    // =========================================================
+    // CLOSE MESSAGE MENUS WHEN CLICKING OUTSIDE
+    // =========================================================
+
+    document.addEventListener(
+        "click",
+        function (event) {
+
+            if (
+                event.target.closest(
+                    ".message-actions"
+                )
+            ) {
+                return;
+            }
+
+
+            closeAllMessageMenus();
+        }
+    );
+
+
+    // =========================================================
+    // CANCEL REPLY / EDIT
     // =========================================================
 
     if (cancelReplyBtn) {
@@ -878,10 +2742,18 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
                 event.preventDefault();
 
-                clearReply();
 
-                if (chatInput) {
-                    chatInput.focus();
+                if (editingMessageId) {
+
+                    cancelEditing();
+
+                } else {
+
+                    clearReply();
+
+                    if (chatInput) {
+                        chatInput.focus();
+                    }
                 }
             }
         );
@@ -889,7 +2761,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
-    // SEND TEXT MESSAGE
+    // SEND / EDIT TEXT MESSAGE
     // =========================================================
 
     if (chatForm) {
@@ -917,6 +2789,22 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 }
 
 
+                // =================================================
+                // EDIT MODE
+                // =================================================
+
+                if (editingMessageId) {
+
+                    saveEditedMessage();
+
+                    return;
+                }
+
+
+                // =================================================
+                // NORMAL SEND MODE
+                // =================================================
+
                 const message =
                     chatInput.value.trim();
 
@@ -930,16 +2818,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
                     console.error(
                         "❌ Receiver ID is missing."
-                    );
-
-                    return;
-                }
-
-
-                if (!socket) {
-
-                    console.error(
-                        "❌ Socket.IO is unavailable."
                     );
 
                     return;
@@ -962,10 +2840,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 };
 
 
-                // -------------------------------------------------
-                // Add reply information if replying
-                // -------------------------------------------------
-
                 if (replyToId) {
 
                     payload.reply_to_id =
@@ -979,12 +2853,8 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 );
 
 
-                // Clear input
-
                 chatInput.value = "";
 
-
-                // Clear reply mode
 
                 clearReply();
 
@@ -1017,6 +2887,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
             const messageSender =
                 Number(data.sender_id);
+
 
             const messageReceiver =
                 Number(data.receiver_id);
@@ -1060,6 +2931,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             const messageSender =
                 Number(data.sender_id);
 
+
             const messageReceiver =
                 Number(data.receiver_id);
 
@@ -1099,7 +2971,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "😅",
         "😂",
         "🤣",
-
         "😊",
         "😇",
         "🙂",
@@ -1108,7 +2979,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "😌",
         "😍",
         "🥰",
-
         "😘",
         "😗",
         "😙",
@@ -1117,7 +2987,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "😛",
         "😝",
         "😜",
-
         "🤪",
         "🤨",
         "🧐",
@@ -1126,7 +2995,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "🥳",
         "🤩",
         "😏",
-
         "😒",
         "😞",
         "😔",
@@ -1135,7 +3003,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "🙁",
         "☹️",
         "😣",
-
         "😖",
         "😫",
         "😩",
@@ -1144,7 +3011,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "😭",
         "😤",
         "😠",
-
         "😡",
         "🤬",
         "🤯",
@@ -1153,7 +3019,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "🥶",
         "😱",
         "😨",
-
         "😰",
         "😥",
         "😓",
@@ -1162,7 +3027,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "🤭",
         "🤫",
         "🤥",
-
         "😶",
         "😐",
         "😑",
@@ -1171,7 +3035,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "😯",
         "😦",
         "😧",
-
         "😮",
         "😲",
         "🥱",
@@ -1180,7 +3043,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "😪",
         "😵",
         "🤐",
-
         "🤢",
         "🤮",
         "🤧",
@@ -1197,7 +3059,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "🖤",
         "🤍",
         "🤎",
-
         "💔",
         "💕",
         "💞",
@@ -1221,14 +3082,12 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         "👌",
         "✌️",
         "🤞",
-
         "🤝",
         "👋",
         "💪",
         "🎉",
         "🎊",
-        "❤️‍🔥",
-        "🤣"
+        "❤️‍🔥"
     ];
 
 
@@ -1246,8 +3105,32 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         emojiGrid.innerHTML = "";
 
 
+        const searchTerm =
+            emojiSearch
+                ? emojiSearch.value
+                    .trim()
+                    .toLowerCase()
+                : "";
+
+
         emojis.forEach(
             function (emoji) {
+
+                /*
+                 * Emoji characters themselves cannot really be
+                 * searched by normal text, so an empty search
+                 * displays everything.
+                 *
+                 * We preserve the existing picker behavior.
+                 */
+
+                if (
+                    searchTerm &&
+                    !emoji.includes(searchTerm)
+                ) {
+                    return;
+                }
+
 
                 const button =
                     document.createElement("button");
@@ -1283,7 +3166,12 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
                 button.addEventListener(
                     "click",
-                    function () {
+                    function (event) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
 
                         if (!chatInput) {
                             return;
@@ -1322,15 +3210,22 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
                 event.preventDefault();
 
+                event.stopPropagation();
+
 
                 emojiPicker.classList.toggle(
+                    "show"
+                );
+
+
+                emojiPicker.classList.remove(
                     "d-none"
                 );
 
 
                 if (
-                    !emojiPicker.classList.contains(
-                        "d-none"
+                    emojiPicker.classList.contains(
+                        "show"
                     )
                 ) {
 
@@ -1358,7 +3253,46 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
-    // CLOSE EMOJI PICKER WHEN CLICKING OUTSIDE
+    // EMOJI TABS
+    // =========================================================
+
+    const emojiTabs =
+        document.querySelectorAll(
+            ".emoji-tab"
+        );
+
+
+    emojiTabs.forEach(
+        function (tab) {
+
+            tab.addEventListener(
+                "click",
+                function () {
+
+                    emojiTabs.forEach(
+                        function (item) {
+
+                            item.classList.remove(
+                                "active"
+                            );
+                        }
+                    );
+
+
+                    tab.classList.add(
+                        "active"
+                    );
+
+
+                    renderEmojis();
+                }
+            );
+        }
+    );
+
+
+    // =========================================================
+    // CLOSE EMOJI PICKER OUTSIDE
     // =========================================================
 
     document.addEventListener(
@@ -1376,8 +3310,8 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 )
             ) {
 
-                emojiPicker.classList.add(
-                    "d-none"
+                emojiPicker.classList.remove(
+                    "show"
                 );
             }
         }
@@ -1404,9 +3338,23 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 event.preventDefault();
 
 
-                // ---------------------------------------------
+                // -------------------------------------------------
+                // Do not record while editing
+                // -------------------------------------------------
+
+                if (editingMessageId) {
+
+                    console.log(
+                        "🚫 Voice recording disabled while editing."
+                    );
+
+                    return;
+                }
+
+
+                // -------------------------------------------------
                 // STOP RECORDING
-                // ---------------------------------------------
+                // -------------------------------------------------
 
                 if (isRecording) {
 
@@ -1419,9 +3367,9 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 }
 
 
-                // ---------------------------------------------
+                // -------------------------------------------------
                 // START RECORDING
-                // ---------------------------------------------
+                // -------------------------------------------------
 
                 try {
 
@@ -1517,10 +3465,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                                     };
 
 
-                                    // -----------------------------------------
-                                    // Include reply information for voice reply
-                                    // -----------------------------------------
-
                                     if (replyToId) {
 
                                         payload.reply_to_id =
@@ -1533,8 +3477,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                                         payload
                                     );
 
-
-                                    // Clear reply mode
 
                                     clearReply();
                                 };
@@ -1713,8 +3655,21 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
             if (callStatus) {
 
+                callStatus.style.display =
+                    "block";
+
                 callStatus.textContent =
                     "Calling...";
+            }
+
+
+            if (callBtn) {
+                callBtn.classList.add("d-none");
+            }
+
+
+            if (endCallBtn) {
+                endCallBtn.classList.remove("d-none");
             }
 
 
@@ -1742,6 +3697,9 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
             if (callStatus) {
+
+                callStatus.style.display =
+                    "block";
 
                 callStatus.textContent =
                     "Call failed";
@@ -1907,8 +3865,21 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
                     if (callStatus) {
 
+                        callStatus.style.display =
+                            "block";
+
                         callStatus.textContent =
                             "Connected";
+                    }
+
+
+                    if (callBtn) {
+                        callBtn.classList.add("d-none");
+                    }
+
+
+                    if (endCallBtn) {
+                        endCallBtn.classList.remove("d-none");
                     }
 
 
@@ -1999,6 +3970,9 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
                 if (callStatus) {
+
+                    callStatus.style.display =
+                        "block";
 
                     callStatus.textContent =
                         "Connected";
@@ -2102,10 +4076,30 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         }
 
 
+        if (remoteAudio) {
+
+            remoteAudio.srcObject =
+                null;
+        }
+
+
         if (callStatus) {
 
             callStatus.textContent =
                 "";
+
+            callStatus.style.display =
+                "none";
+        }
+
+
+        if (callBtn) {
+            callBtn.classList.remove("d-none");
+        }
+
+
+        if (endCallBtn) {
+            endCallBtn.classList.add("d-none");
         }
 
 
@@ -2157,13 +4151,76 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
-    // INITIAL SCROLL
+    // ESCAPE KEY
+    // =========================================================
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+
+            if (
+                event.key === "Escape" &&
+                editingMessageId
+            ) {
+
+                cancelEditing();
+
+                return;
+            }
+
+
+            if (
+                event.key === "Escape"
+            ) {
+
+                closeAllMessageMenus();
+
+                if (emojiPicker) {
+
+                    emojiPicker.classList.remove(
+                        "show"
+                    );
+                }
+            }
+        }
+    );
+
+
+    // =========================================================
+    // ENTER KEY WHILE EDITING
+    // =========================================================
+
+    if (chatInput) {
+
+        chatInput.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey &&
+                    editingMessageId
+                ) {
+
+                    event.preventDefault();
+
+                    saveEditedMessage();
+                }
+            }
+        );
+    }
+
+
+    // =========================================================
+    // INITIALIZE EVERYTHING
     // =========================================================
 
     setTimeout(
         function () {
 
             initializeExistingReplyButtons();
+
+            initializeExistingMessageMenus();
 
             scrollChatToBottom();
 
@@ -2181,4 +4238,3 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
     );
 
 })();
-

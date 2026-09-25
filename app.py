@@ -43,12 +43,10 @@ app = Flask(__name__)
 
 app.secret_key = "nextura_secret_key"
 
-
 socketio = SocketIO(
     app,
     cors_allowed_origins="*"
 )
-
 
 login_manager = LoginManager(app)
 
@@ -62,7 +60,6 @@ login_manager.login_view = "login"
 AVATAR_FOLDER = "static/uploads/avatars"
 
 VOICE_FOLDER = "static/uploads/voices"
-
 
 os.makedirs(
     AVATAR_FOLDER,
@@ -102,7 +99,6 @@ def init_db():
 
     db = get_db()
 
-
     # -------------------------
     # USERS
     # -------------------------
@@ -122,7 +118,6 @@ def init_db():
                 DEFAULT 'default.png'
         )
     """)
-
 
     # -------------------------
     # MESSAGES
@@ -150,7 +145,6 @@ def init_db():
         )
     """)
 
-
     # -------------------------
     # NOTIFICATIONS
     # -------------------------
@@ -174,9 +168,8 @@ def init_db():
         )
     """)
 
-
     # =====================================================
-    # MESSAGE REPLY MIGRATION
+    # MESSAGE MIGRATIONS
     # =====================================================
 
     message_columns = db.execute(
@@ -187,6 +180,10 @@ def init_db():
         column["name"]
         for column in message_columns
     ]
+
+    # -----------------------------------------------------
+    # REPLY TO ID
+    # -----------------------------------------------------
 
     if "reply_to_id" not in message_column_names:
 
@@ -199,6 +196,108 @@ def init_db():
             "✅ Added reply_to_id column to messages table."
         )
 
+        message_column_names.append(
+            "reply_to_id"
+        )
+
+    # -----------------------------------------------------
+    # DELETE FOR SENDER
+    # -----------------------------------------------------
+
+    if "deleted_for_sender" not in message_column_names:
+
+        db.execute("""
+            ALTER TABLE messages
+            ADD COLUMN deleted_for_sender INTEGER
+            DEFAULT 0
+        """)
+
+        print(
+            "✅ Added deleted_for_sender column."
+        )
+
+        message_column_names.append(
+            "deleted_for_sender"
+        )
+
+    # -----------------------------------------------------
+    # DELETE FOR RECEIVER
+    # -----------------------------------------------------
+
+    if "deleted_for_receiver" not in message_column_names:
+
+        db.execute("""
+            ALTER TABLE messages
+            ADD COLUMN deleted_for_receiver INTEGER
+            DEFAULT 0
+        """)
+
+        print(
+            "✅ Added deleted_for_receiver column."
+        )
+
+        message_column_names.append(
+            "deleted_for_receiver"
+        )
+
+    # -----------------------------------------------------
+    # DELETE FOR EVERYONE
+    # -----------------------------------------------------
+
+    if "deleted_for_everyone" not in message_column_names:
+
+        db.execute("""
+            ALTER TABLE messages
+            ADD COLUMN deleted_for_everyone INTEGER
+            DEFAULT 0
+        """)
+
+        print(
+            "✅ Added deleted_for_everyone column."
+        )
+
+        message_column_names.append(
+            "deleted_for_everyone"
+        )
+
+    # -----------------------------------------------------
+    # PHASE 2.3 — EDITED
+    # -----------------------------------------------------
+
+    if "edited" not in message_column_names:
+
+        db.execute("""
+            ALTER TABLE messages
+            ADD COLUMN edited INTEGER
+            DEFAULT 0
+        """)
+
+        print(
+            "✅ Added edited column."
+        )
+
+        message_column_names.append(
+            "edited"
+        )
+
+    # -----------------------------------------------------
+    # PHASE 2.3 — EDITED AT
+    # -----------------------------------------------------
+
+    if "edited_at" not in message_column_names:
+
+        db.execute("""
+            ALTER TABLE messages
+            ADD COLUMN edited_at DATETIME
+        """)
+
+        print(
+            "✅ Added edited_at column."
+        )
+
+        message_column_names.append(
+            "edited_at"
+        )
 
     db.commit()
 
@@ -259,7 +358,6 @@ def get_reply_info(
             None
         )
 
-
     try:
 
         reply_to_id = int(
@@ -277,7 +375,6 @@ def get_reply_info(
             None
         )
 
-
     reply_message = db.execute("""
         SELECT
 
@@ -290,6 +387,8 @@ def get_reply_info(
             messages.message,
 
             messages.message_type,
+
+            messages.deleted_for_everyone,
 
             users.username AS sender_name
 
@@ -328,7 +427,6 @@ def get_reply_info(
         sender_id
     )).fetchone()
 
-
     if not reply_message:
 
         return (
@@ -337,14 +435,25 @@ def get_reply_info(
             None
         )
 
+    # -----------------------------------------
+    # Deleted message preview
+    # -----------------------------------------
+
+    if reply_message["deleted_for_everyone"]:
+
+        reply_preview = "🚫 This message was deleted"
 
     # -----------------------------------------
-    # Create preview
+    # Voice preview
     # -----------------------------------------
 
-    if reply_message["message_type"] == "voice":
+    elif reply_message["message_type"] == "voice":
 
         reply_preview = "🎙 Voice message"
+
+    # -----------------------------------------
+    # Normal message preview
+    # -----------------------------------------
 
     else:
 
@@ -352,7 +461,6 @@ def get_reply_info(
             reply_message["message"]
             or ""
         )
-
 
     # -----------------------------------------
     # Sender name
@@ -362,7 +470,6 @@ def get_reply_info(
         reply_message["sender_name"]
         or "User"
     )
-
 
     return (
         reply_message["id"],
@@ -389,11 +496,6 @@ def create_notification(
 
     db = get_db()
 
-
-    # -----------------------------------------
-    # Save notification
-    # -----------------------------------------
-
     cursor = db.execute("""
         INSERT INTO notifications
         (
@@ -408,13 +510,7 @@ def create_notification(
         message
     ))
 
-
     notification_id = cursor.lastrowid
-
-
-    # -----------------------------------------
-    # Get sender username
-    # -----------------------------------------
 
     sender = db.execute("""
         SELECT username
@@ -424,22 +520,15 @@ def create_notification(
         sender_id,
     )).fetchone()
 
-
     sender_name = (
         sender["username"]
         if sender
         else "Someone"
     )
 
-
     db.commit()
 
     db.close()
-
-
-    # -----------------------------------------
-    # Send real-time notification
-    # -----------------------------------------
 
     socketio.emit(
         "new_notification",
@@ -494,7 +583,6 @@ def load_user(user_id):
 
     db = get_db()
 
-
     user = db.execute(
         """
         SELECT *
@@ -506,9 +594,7 @@ def load_user(user_id):
         )
     ).fetchone()
 
-
     db.close()
-
 
     if user:
 
@@ -519,7 +605,6 @@ def load_user(user_id):
             user["password"],
             user["profile_image"]
         )
-
 
     return None
 
@@ -536,7 +621,6 @@ def home():
         return redirect(
             url_for("dashboard")
         )
-
 
     return redirect(
         url_for("login")
@@ -560,18 +644,15 @@ def signup():
             ""
         ).strip()
 
-
         email = request.form.get(
             "email",
             ""
         ).strip().lower()
 
-
         password = request.form.get(
             "password",
             ""
         )
-
 
         if not username or not email or not password:
 
@@ -583,9 +664,7 @@ def signup():
                 "signup.html"
             )
 
-
         db = get_db()
-
 
         try:
 
@@ -610,26 +689,21 @@ def signup():
                 )
             )
 
-
             db.commit()
-
 
             flash(
                 "Account created successfully. Please login."
             )
 
-
             return redirect(
                 url_for("login")
             )
-
 
         except sqlite3.IntegrityError:
 
             flash(
                 "Username or email already exists."
             )
-
 
         except Exception as e:
 
@@ -642,11 +716,9 @@ def signup():
                 "Something went wrong while creating your account."
             )
 
-
         finally:
 
             db.close()
-
 
     return render_template(
         "signup.html"
@@ -670,15 +742,12 @@ def login():
             ""
         ).strip().lower()
 
-
         password = request.form.get(
             "password",
             ""
         )
 
-
         db = get_db()
-
 
         user = db.execute(
             """
@@ -691,9 +760,7 @@ def login():
             )
         ).fetchone()
 
-
         db.close()
-
 
         if user and check_password_hash(
             user["password"],
@@ -710,16 +777,13 @@ def login():
                 )
             )
 
-
             return redirect(
                 url_for("dashboard")
             )
 
-
         flash(
             "Invalid login details."
         )
-
 
     return render_template(
         "login.html"
@@ -735,7 +799,6 @@ def login():
 def logout():
 
     logout_user()
-
 
     return redirect(
         url_for("login")
@@ -767,7 +830,6 @@ def users():
 
     db = get_db()
 
-
     users = db.execute(
         """
         SELECT
@@ -782,9 +844,7 @@ def users():
         )
     ).fetchall()
 
-
     db.close()
-
 
     return render_template(
         "users.html",
@@ -804,11 +864,6 @@ def users():
 def get_notifications():
 
     db = get_db()
-
-
-    # -----------------------------------------
-    # Get notifications
-    # -----------------------------------------
 
     notifications = db.execute("""
         SELECT
@@ -842,11 +897,6 @@ def get_notifications():
         current_user.id,
     )).fetchall()
 
-
-    # -----------------------------------------
-    # Get unread count
-    # -----------------------------------------
-
     unread = db.execute("""
         SELECT COUNT(*) AS count
 
@@ -860,9 +910,7 @@ def get_notifications():
         current_user.id,
     )).fetchone()
 
-
     db.close()
-
 
     return jsonify({
 
@@ -914,7 +962,6 @@ def mark_notifications_read():
 
     db = get_db()
 
-
     db.execute("""
         UPDATE notifications
 
@@ -926,11 +973,9 @@ def mark_notifications_read():
         current_user.id,
     ))
 
-
     db.commit()
 
     db.close()
-
 
     return jsonify({
 
@@ -950,7 +995,6 @@ def mark_notifications_read():
 def chat(user_id):
 
     db = get_db()
-
 
     # -----------------------------------------
     # Get receiver
@@ -976,24 +1020,27 @@ def chat(user_id):
         )
     ).fetchone()
 
-
     if not receiver:
 
         db.close()
-
 
         flash(
             "User not found."
         )
 
-
         return redirect(
             url_for("users")
         )
 
-
     # -----------------------------------------
     # Get messages
+    #
+    # Delete-for-me messages are hidden only
+    # from the user who deleted them.
+    #
+    # Delete-for-everyone messages remain in
+    # the result so they can display the
+    # deleted placeholder.
     # -----------------------------------------
 
     messages = db.execute("""
@@ -1003,12 +1050,20 @@ def chat(user_id):
 
         WHERE
 
+            deleted_for_everyone = 1
+
+            OR
+
             (
                 sender_id = ?
 
                 AND
 
                 receiver_id = ?
+
+                AND
+
+                deleted_for_sender = 0
             )
 
             OR
@@ -1019,6 +1074,10 @@ def chat(user_id):
                 AND
 
                 receiver_id = ?
+
+                AND
+
+                deleted_for_receiver = 0
             )
 
         ORDER BY
@@ -1033,7 +1092,6 @@ def chat(user_id):
 
         current_user.id
     )).fetchall()
-
 
     # -----------------------------------------
     # Mark notifications from this user
@@ -1055,11 +1113,9 @@ def chat(user_id):
         user_id
     ))
 
-
     db.commit()
 
     db.close()
-
 
     return render_template(
         "chat.html",
@@ -1083,7 +1139,6 @@ def connect():
 
         return
 
-
     # -----------------------------------------
     # Join personal notification room
     # -----------------------------------------
@@ -1092,7 +1147,6 @@ def connect():
         f"user_{current_user.id}"
     )
 
-
     # -----------------------------------------
     # Add user online
     # -----------------------------------------
@@ -1100,7 +1154,6 @@ def connect():
     online_users.add(
         current_user.id
     )
-
 
     # -----------------------------------------
     # Broadcast online users
@@ -1126,11 +1179,9 @@ def disconnect():
 
         return
 
-
     online_users.discard(
         current_user.id
     )
-
 
     emit(
         "status_update",
@@ -1152,19 +1203,15 @@ def on_join(data):
 
         return
 
-
     sender_id = current_user.id
-
 
     receiver_id = data.get(
         "receiver_id"
     )
 
-
     if not receiver_id:
 
         return
-
 
     try:
 
@@ -1172,14 +1219,12 @@ def on_join(data):
             receiver_id
         )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError
+    ):
 
         return
-
-
-    # -----------------------------------------
-    # Join private chat room
-    # -----------------------------------------
 
     join_room(
         get_room_id(
@@ -1197,32 +1242,40 @@ def on_join(data):
 def send_message(data):
 
     if not current_user.is_authenticated:
-        print("❌ Unauthenticated socket tried to send a message.")
-        return
 
-    # =====================================================
-    # SENDER
-    # =====================================================
+        print(
+            "❌ Unauthenticated socket tried to send a message."
+        )
+
+        return
 
     sender_id = current_user.id
 
-    # =====================================================
-    # RECEIVER
-    # =====================================================
+    # -----------------------------------------
+    # Receiver
+    # -----------------------------------------
 
     try:
+
         receiver_id = int(
             data.get("receiver_id")
         )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError
+    ):
 
-        print("❌ Invalid receiver ID:", data.get("receiver_id"))
+        print(
+            "❌ Invalid receiver ID:",
+            data.get("receiver_id")
+        )
+
         return
 
-    # =====================================================
-    # MESSAGE
-    # =====================================================
+    # -----------------------------------------
+    # Message
+    # -----------------------------------------
 
     message = str(
         data.get(
@@ -1232,20 +1285,24 @@ def send_message(data):
     ).strip()
 
     if not message:
+
         return
 
-    # =====================================================
-    # PREVENT SELF MESSAGE
-    # =====================================================
+    # -----------------------------------------
+    # Prevent self-message
+    # -----------------------------------------
 
     if sender_id == receiver_id:
 
-        print("❌ User cannot message themselves.")
+        print(
+            "❌ User cannot message themselves."
+        )
+
         return
 
-    # =====================================================
-    # REPLY ID
-    # =====================================================
+    # -----------------------------------------
+    # Reply
+    # -----------------------------------------
 
     reply_to_id = data.get(
         "reply_to_id"
@@ -1254,10 +1311,6 @@ def send_message(data):
     db = get_db()
 
     try:
-
-        # =================================================
-        # VERIFY RECEIVER
-        # =================================================
 
         receiver = db.execute(
             """
@@ -1279,10 +1332,6 @@ def send_message(data):
 
             return
 
-        # =================================================
-        # VALIDATE REPLY
-        # =================================================
-
         (
             reply_to_id,
             reply_preview,
@@ -1294,10 +1343,6 @@ def send_message(data):
             receiver_id
         )
 
-        # =================================================
-        # SAVE MESSAGE
-        # =================================================
-
         cursor = db.execute(
             """
             INSERT INTO messages
@@ -1307,7 +1352,12 @@ def send_message(data):
                 message,
                 message_type,
                 status,
-                reply_to_id
+                reply_to_id,
+                deleted_for_sender,
+                deleted_for_receiver,
+                deleted_for_everyone,
+                edited,
+                edited_at
             )
             VALUES
             (
@@ -1316,7 +1366,12 @@ def send_message(data):
                 ?,
                 'text',
                 'sent',
-                ?
+                ?,
+                0,
+                0,
+                0,
+                0,
+                NULL
             )
             """,
             (
@@ -1355,9 +1410,9 @@ def send_message(data):
 
         db.close()
 
-    # =====================================================
-    # GET SENDER NAME
-    # =====================================================
+    # -----------------------------------------
+    # Sender name
+    # -----------------------------------------
 
     db = get_db()
 
@@ -1380,9 +1435,9 @@ def send_message(data):
         else "User"
     )
 
-    # =====================================================
-    # MESSAGE DATA
-    # =====================================================
+    # -----------------------------------------
+    # Message data
+    # -----------------------------------------
 
     message_data = {
 
@@ -1414,12 +1469,21 @@ def send_message(data):
             reply_preview,
 
         "reply_sender_name":
-            reply_sender_name
+            reply_sender_name,
+
+        "deleted_for_everyone":
+            0,
+
+        "edited":
+            0,
+
+        "edited_at":
+            None
     }
 
-    # =====================================================
-    # SEND TO SENDER
-    # =====================================================
+    # -----------------------------------------
+    # Sender
+    # -----------------------------------------
 
     socketio.emit(
         "receive_message",
@@ -1427,14 +1491,9 @@ def send_message(data):
         room=f"user_{sender_id}"
     )
 
-    print(
-        "📤 Message sent to sender room:",
-        f"user_{sender_id}"
-    )
-
-    # =====================================================
-    # SEND TO RECEIVER
-    # =====================================================
+    # -----------------------------------------
+    # Receiver
+    # -----------------------------------------
 
     socketio.emit(
         "receive_message",
@@ -1442,14 +1501,9 @@ def send_message(data):
         room=f"user_{receiver_id}"
     )
 
-    print(
-        "📤 Message sent to receiver room:",
-        f"user_{receiver_id}"
-    )
-
-    # =====================================================
-    # CREATE NOTIFICATION
-    # =====================================================
+    # -----------------------------------------
+    # Notification
+    # -----------------------------------------
 
     create_notification(
         receiver_id,
@@ -1461,6 +1515,7 @@ def send_message(data):
         "🔔 Notification created for:",
         receiver_id
     )
+
 
 # =========================================================
 # SEND VOICE MESSAGE
@@ -1479,9 +1534,9 @@ def send_voice(data):
 
     sender_id = current_user.id
 
-    # =====================================================
-    # RECEIVER
-    # =====================================================
+    # -----------------------------------------
+    # Receiver
+    # -----------------------------------------
 
     try:
 
@@ -1489,7 +1544,10 @@ def send_voice(data):
             data.get("receiver_id")
         )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError
+    ):
 
         print(
             "❌ Invalid voice receiver:",
@@ -1498,17 +1556,13 @@ def send_voice(data):
 
         return
 
-    # =====================================================
-    # PREVENT SELF MESSAGE
-    # =====================================================
-
     if sender_id == receiver_id:
 
         return
 
-    # =====================================================
-    # AUDIO
-    # =====================================================
+    # -----------------------------------------
+    # Audio
+    # -----------------------------------------
 
     audio_data = data.get(
         "audio"
@@ -1522,17 +1576,17 @@ def send_voice(data):
 
         return
 
-    # =====================================================
-    # REPLY
-    # =====================================================
+    # -----------------------------------------
+    # Reply
+    # -----------------------------------------
 
     reply_to_id = data.get(
         "reply_to_id"
     )
 
-    # =====================================================
-    # DATABASE
-    # =====================================================
+    # -----------------------------------------
+    # Verify receiver + reply
+    # -----------------------------------------
 
     db = get_db()
 
@@ -1571,9 +1625,9 @@ def send_voice(data):
 
     db.close()
 
-    # =====================================================
-    # DECODE AUDIO
-    # =====================================================
+    # -----------------------------------------
+    # Decode audio
+    # -----------------------------------------
 
     try:
 
@@ -1601,9 +1655,9 @@ def send_voice(data):
 
         return
 
-    # =====================================================
-    # FILE NAME
-    # =====================================================
+    # -----------------------------------------
+    # File name
+    # -----------------------------------------
 
     filename = (
         f"{sender_id}_"
@@ -1616,9 +1670,9 @@ def send_voice(data):
         filename
     )
 
-    # =====================================================
-    # SAVE AUDIO
-    # =====================================================
+    # -----------------------------------------
+    # Save audio
+    # -----------------------------------------
 
     try:
 
@@ -1640,9 +1694,9 @@ def send_voice(data):
 
         return
 
-    # =====================================================
-    # SAVE MESSAGE
-    # =====================================================
+    # -----------------------------------------
+    # Save message
+    # -----------------------------------------
 
     db = get_db()
 
@@ -1657,7 +1711,12 @@ def send_voice(data):
                 message,
                 message_type,
                 status,
-                reply_to_id
+                reply_to_id,
+                deleted_for_sender,
+                deleted_for_receiver,
+                deleted_for_everyone,
+                edited,
+                edited_at
             )
             VALUES
             (
@@ -1666,7 +1725,12 @@ def send_voice(data):
                 ?,
                 'voice',
                 'sent',
-                ?
+                ?,
+                0,
+                0,
+                0,
+                0,
+                NULL
             )
             """,
             (
@@ -1696,18 +1760,18 @@ def send_voice(data):
 
     db.close()
 
-    # =====================================================
-    # AUDIO URL
-    # =====================================================
+    # -----------------------------------------
+    # Audio URL
+    # -----------------------------------------
 
     audio_url = url_for(
         "static",
         filename=f"uploads/voices/{filename}"
     )
 
-    # =====================================================
-    # SENDER NAME
-    # =====================================================
+    # -----------------------------------------
+    # Sender name
+    # -----------------------------------------
 
     db = get_db()
 
@@ -1730,9 +1794,9 @@ def send_voice(data):
         else "User"
     )
 
-    # =====================================================
-    # MESSAGE DATA
-    # =====================================================
+    # -----------------------------------------
+    # Message data
+    # -----------------------------------------
 
     message_data = {
 
@@ -1767,12 +1831,21 @@ def send_voice(data):
             reply_preview,
 
         "reply_sender_name":
-            reply_sender_name
+            reply_sender_name,
+
+        "deleted_for_everyone":
+            0,
+
+        "edited":
+            0,
+
+        "edited_at":
+            None
     }
 
-    # =====================================================
-    # SEND TO SENDER
-    # =====================================================
+    # -----------------------------------------
+    # Sender
+    # -----------------------------------------
 
     socketio.emit(
         "receive_message",
@@ -1780,9 +1853,9 @@ def send_voice(data):
         room=f"user_{sender_id}"
     )
 
-    # =====================================================
-    # SEND TO RECEIVER
-    # =====================================================
+    # -----------------------------------------
+    # Receiver
+    # -----------------------------------------
 
     socketio.emit(
         "receive_message",
@@ -1797,15 +1870,547 @@ def send_voice(data):
         receiver_id
     )
 
-    # =====================================================
-    # NOTIFICATION
-    # =====================================================
+    # -----------------------------------------
+    # Notification
+    # -----------------------------------------
 
     create_notification(
         receiver_id,
         sender_id,
         "🎙 Voice message"
     )
+
+
+# =========================================================
+# DELETE MESSAGE
+# =========================================================
+
+@socketio.on("delete_message")
+def delete_message(data):
+
+    if not current_user.is_authenticated:
+
+        print(
+            "❌ Unauthenticated user tried to delete a message."
+        )
+
+        return
+
+    # -----------------------------------------
+    # Message ID
+    # -----------------------------------------
+
+    try:
+
+        message_id = int(
+            data.get("message_id")
+        )
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
+        print(
+            "❌ Invalid message ID:",
+            data.get("message_id")
+        )
+
+        return
+
+    # -----------------------------------------
+    # Delete type
+    # -----------------------------------------
+
+    delete_type = str(
+        data.get(
+            "delete_type",
+            ""
+        )
+    ).strip().lower()
+
+    if delete_type not in (
+        "me",
+        "everyone"
+    ):
+
+        print(
+            "❌ Invalid delete type:",
+            delete_type
+        )
+
+        return
+
+    db = get_db()
+
+    try:
+
+        # -----------------------------------------
+        # Find message
+        # -----------------------------------------
+
+        message = db.execute(
+            """
+            SELECT *
+
+            FROM messages
+
+            WHERE id = ?
+            """,
+            (
+                message_id,
+            )
+        ).fetchone()
+
+        if not message:
+
+            print(
+                "❌ Message not found:",
+                message_id
+            )
+
+            return
+
+        sender_id = message["sender_id"]
+
+        receiver_id = message["receiver_id"]
+
+        # -----------------------------------------
+        # Verify user belongs to conversation
+        # -----------------------------------------
+
+        if current_user.id not in (
+            sender_id,
+            receiver_id
+        ):
+
+            print(
+                "❌ Unauthorized message deletion attempt."
+            )
+
+            return
+
+        # =================================================
+        # DELETE FOR ME
+        # =================================================
+
+        if delete_type == "me":
+
+            if current_user.id == sender_id:
+
+                db.execute(
+                    """
+                    UPDATE messages
+
+                    SET deleted_for_sender = 1
+
+                    WHERE id = ?
+                    """,
+                    (
+                        message_id,
+                    )
+                )
+
+            else:
+
+                db.execute(
+                    """
+                    UPDATE messages
+
+                    SET deleted_for_receiver = 1
+
+                    WHERE id = ?
+                    """,
+                    (
+                        message_id,
+                    )
+                )
+
+            db.commit()
+
+            # -----------------------------------------
+            # Tell current user's browser
+            # -----------------------------------------
+
+            socketio.emit(
+                "message_deleted_for_me",
+                {
+                    "message_id":
+                        message_id
+                },
+                room=f"user_{current_user.id}"
+            )
+
+            print(
+                "🗑 Message deleted for user:",
+                current_user.id,
+                "message:",
+                message_id
+            )
+
+            return
+
+        # =================================================
+        # DELETE FOR EVERYONE
+        # =================================================
+
+        # Only the original sender may use
+        # Delete for Everyone.
+
+        if current_user.id != sender_id:
+
+            print(
+                "❌ Receiver cannot delete message for everyone."
+            )
+
+            return
+
+        db.execute(
+            """
+            UPDATE messages
+
+            SET
+                deleted_for_everyone = 1,
+                message = 'This message was deleted'
+
+            WHERE id = ?
+            """,
+            (
+                message_id,
+            )
+        )
+
+        db.commit()
+
+        deleted_data = {
+
+            "message_id":
+                message_id,
+
+            "sender_id":
+                sender_id,
+
+            "receiver_id":
+                receiver_id,
+
+            "message":
+                "This message was deleted",
+
+            "message_type":
+                message["message_type"],
+
+            "deleted_for_everyone":
+                1
+        }
+
+        # -----------------------------------------
+        # Sender
+        # -----------------------------------------
+
+        socketio.emit(
+            "message_deleted_for_everyone",
+            deleted_data,
+            room=f"user_{sender_id}"
+        )
+
+        # -----------------------------------------
+        # Receiver
+        # -----------------------------------------
+
+        socketio.emit(
+            "message_deleted_for_everyone",
+            deleted_data,
+            room=f"user_{receiver_id}"
+        )
+
+        print(
+            "🗑 Message deleted for everyone:",
+            message_id
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "❌ DELETE MESSAGE ERROR:",
+            e
+        )
+
+    finally:
+
+        db.close()
+
+
+## =========================================================
+# PHASE 2.3 — EDIT MESSAGE
+# =========================================================
+
+@socketio.on("edit_message")
+def edit_message(data):
+
+    # -----------------------------------------
+    # Check authentication
+    # -----------------------------------------
+
+    if not current_user.is_authenticated:
+
+        print(
+            "❌ Unauthenticated user tried to edit a message."
+        )
+
+        return
+
+    # -----------------------------------------
+    # Validate incoming data
+    # -----------------------------------------
+
+    if not data:
+
+        print(
+            "❌ No edit data received."
+        )
+
+        return
+
+    # -----------------------------------------
+    # Message ID
+    # -----------------------------------------
+
+    try:
+
+        message_id = int(
+            data.get("message_id")
+        )
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
+        print(
+            "❌ Invalid edit message ID:",
+            data.get("message_id")
+        )
+
+        return
+
+    # -----------------------------------------
+    # New message
+    # -----------------------------------------
+
+    new_message = str(
+        data.get(
+            "message",
+            ""
+        )
+    ).strip()
+
+    if not new_message:
+
+        print(
+            "❌ Edited message cannot be empty."
+        )
+
+        return
+
+    # -----------------------------------------
+    # Message length
+    # -----------------------------------------
+
+    if len(new_message) > 5000:
+
+        print(
+            "❌ Edited message is too long."
+        )
+
+        return
+
+    db = get_db()
+
+    try:
+
+        # -----------------------------------------
+        # Find message
+        # -----------------------------------------
+
+        message = db.execute(
+            """
+            SELECT
+                id,
+                sender_id,
+                receiver_id,
+                message,
+                message_type,
+                deleted_for_everyone
+            FROM messages
+            WHERE id = ?
+            """,
+            (
+                message_id,
+            )
+        ).fetchone()
+
+        if not message:
+
+            print(
+                "❌ Message not found:",
+                message_id
+            )
+
+            return
+
+        # -----------------------------------------
+        # Basic message information
+        # -----------------------------------------
+
+        sender_id = message["sender_id"]
+
+        receiver_id = message["receiver_id"]
+
+        # -----------------------------------------
+        # Only sender can edit
+        # -----------------------------------------
+
+        if current_user.id != sender_id:
+
+            print(
+                "❌ User is not allowed to edit this message."
+            )
+
+            return
+
+        # -----------------------------------------
+        # Only text messages
+        # -----------------------------------------
+
+        if message["message_type"] != "text":
+
+            print(
+                "❌ Only text messages can be edited."
+            )
+
+            return
+
+        # -----------------------------------------
+        # Deleted-for-everyone messages
+        # cannot be edited
+        # -----------------------------------------
+
+        if message["deleted_for_everyone"]:
+
+            print(
+                "❌ Deleted message cannot be edited."
+            )
+
+            return
+
+        # -----------------------------------------
+        # Save edit time
+        # -----------------------------------------
+
+        edited_at = datetime.utcnow().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        # -----------------------------------------
+        # Update database
+        # -----------------------------------------
+
+        db.execute(
+            """
+            UPDATE messages
+
+            SET
+                message = ?,
+                edited = 1,
+                edited_at = ?
+
+            WHERE id = ?
+            """,
+            (
+                new_message,
+                edited_at,
+                message_id
+            )
+        )
+
+        db.commit()
+
+        # -----------------------------------------
+        # Data sent to both users
+        # -----------------------------------------
+
+        edited_data = {
+
+            "id":
+                message_id,
+
+            "message_id":
+                message_id,
+
+            "sender_id":
+                sender_id,
+
+            "receiver_id":
+                receiver_id,
+
+            "message":
+                new_message,
+
+            "text":
+                new_message,
+
+            "message_type":
+                "text",
+
+            "edited":
+                1,
+
+            "edited_at":
+                edited_at,
+
+            "deleted_for_everyone":
+                0
+        }
+
+        # -----------------------------------------
+        # Send to sender
+        # -----------------------------------------
+
+        socketio.emit(
+            "message_edited",
+            edited_data,
+            room=f"user_{sender_id}"
+        )
+
+        # -----------------------------------------
+        # Send to receiver
+        # -----------------------------------------
+
+        socketio.emit(
+            "message_edited",
+            edited_data,
+            room=f"user_{receiver_id}"
+        )
+
+        print(
+            "✏️ Message edited successfully:",
+            message_id
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "❌ EDIT MESSAGE ERROR:",
+            e
+        )
+
+    finally:
+
+        db.close()
 
 # =========================================================
 # AUDIO CALL
@@ -1818,21 +2423,17 @@ def call_user(data):
 
         return
 
-
     target = data.get(
         "target"
     )
-
 
     offer = data.get(
         "offer"
     )
 
-
     if not target or not offer:
 
         return
-
 
     emit(
         "incoming_call",
@@ -1860,21 +2461,17 @@ def call_accepted(data):
 
         return
 
-
     target = data.get(
         "target"
     )
-
 
     answer = data.get(
         "answer"
     )
 
-
     if not target or not answer:
 
         return
-
 
     emit(
         "call_accepted",
@@ -1899,21 +2496,17 @@ def ice_candidate(data):
 
         return
 
-
     target = data.get(
         "target"
     )
-
 
     candidate = data.get(
         "candidate"
     )
 
-
     if not target or not candidate:
 
         return
-
 
     emit(
         "ice_candidate",
@@ -1938,16 +2531,13 @@ def end_call(data):
 
         return
 
-
     target = data.get(
         "target"
     )
 
-
     if not target:
 
         return
-
 
     emit(
         "call_ended",
@@ -1968,7 +2558,6 @@ if __name__ == "__main__":
             5000
         )
     )
-
 
     socketio.run(
         app,

@@ -25,6 +25,10 @@ dark-mode
         --chat-border: rgba(255, 255, 255, 0.09);
         --reply-bg: rgba(255, 69, 0, 0.10);
         --reply-border: orangered;
+        --delete-bg: #1c1c1c;
+        --danger: #ff4d4d;
+        --edit-bg: rgba(255, 165, 0, 0.10);
+        --edit-border: #ff9800;
     }
 
     body.light-mode {
@@ -37,6 +41,10 @@ dark-mode
         --chat-border: rgba(0, 0, 0, 0.12);
         --reply-bg: rgba(255, 106, 0, 0.08);
         --reply-border: #ff6a00;
+        --delete-bg: #ffffff;
+        --danger: #dc3545;
+        --edit-bg: rgba(255, 152, 0, 0.10);
+        --edit-border: #ff9800;
     }
 
 
@@ -56,7 +64,6 @@ dark-mode
         border-radius: 14px;
 
         overflow: hidden;
-
         box-sizing: border-box;
     }
 
@@ -72,29 +79,21 @@ dark-mode
 
     .nextura-chat-sidebar {
         height: 100%;
-
         background: var(--chat-panel);
-
         border-right: 1px solid var(--chat-border);
-
         min-height: 0;
     }
 
     .nextura-chat-sidebar-title {
         padding: 15px;
-
         font-weight: 700;
-
         border-bottom: 1px solid var(--chat-border);
     }
 
     .nextura-chat-sidebar a {
         display: block;
-
         padding: 12px 15px;
-
         color: var(--chat-text);
-
         text-decoration: none;
 
         transition:
@@ -104,7 +103,6 @@ dark-mode
 
     .nextura-chat-sidebar a:hover {
         background: rgba(255, 69, 0, 0.12);
-
         color: var(--chat-accent);
     }
 
@@ -156,7 +154,6 @@ dark-mode
 
     .nextura-chat-name {
         font-weight: 700;
-
         color: var(--chat-text);
 
         overflow: hidden;
@@ -183,7 +180,6 @@ dark-mode
         color: var(--chat-accent);
 
         font-size: 14px;
-
         font-weight: 700;
 
         border-bottom: 1px solid var(--chat-border);
@@ -233,9 +229,7 @@ dark-mode
 
     .nextura-message-row {
         display: flex;
-
         width: 100%;
-
         margin-bottom: 8px;
     }
 
@@ -254,7 +248,6 @@ dark-mode
 
     .nextura-message-wrapper {
         position: relative;
-
         max-width: 70%;
     }
 
@@ -278,8 +271,7 @@ dark-mode
 
         line-height: 1.45;
 
-        animation:
-            messageAppear 0.2s ease;
+        animation: messageAppear 0.2s ease;
     }
 
     .chat-bubble.me {
@@ -316,6 +308,45 @@ dark-mode
 
 
     /* =====================================================
+       MESSAGE TEXT
+    ===================================================== */
+
+    .message-text {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+
+    /* =====================================================
+       EDITED INDICATOR
+    ===================================================== */
+
+    .edited-indicator {
+        display: inline-block;
+
+        margin-left: 7px;
+
+        font-size: 10px;
+
+        font-style: italic;
+
+        opacity: 0.65;
+
+        vertical-align: middle;
+
+        white-space: nowrap;
+    }
+
+    .chat-bubble.me .edited-indicator {
+        color: rgba(255, 255, 255, 0.78);
+    }
+
+    .chat-bubble.other .edited-indicator {
+        color: var(--chat-muted);
+    }
+
+
+    /* =====================================================
        REPLY PREVIEW INSIDE MESSAGE
     ===================================================== */
 
@@ -338,8 +369,7 @@ dark-mode
 
         cursor: pointer;
 
-        transition:
-            background 0.15s ease;
+        transition: background 0.15s ease;
     }
 
     .message-reply-preview:hover {
@@ -398,12 +428,15 @@ dark-mode
 
         display: flex;
 
+        align-items: center;
+
+        gap: 5px;
+
         opacity: 0;
 
         pointer-events: none;
 
-        transition:
-            opacity 0.15s ease;
+        transition: opacity 0.15s ease;
     }
 
     .nextura-message-row.sent .message-actions {
@@ -416,11 +449,16 @@ dark-mode
 
     .nextura-message-wrapper:hover .message-actions {
         opacity: 1;
-
         pointer-events: auto;
     }
 
-    .reply-message-btn {
+
+    /* =====================================================
+       ACTION BUTTONS
+    ===================================================== */
+
+    .reply-message-btn,
+    .message-menu-btn {
         width: 32px;
         height: 32px;
 
@@ -450,12 +488,133 @@ dark-mode
             transform 0.15s ease;
     }
 
-    .reply-message-btn:hover {
+    .reply-message-btn:hover,
+    .message-menu-btn:hover {
         background: orangered;
-
         color: #ffffff;
-
         transform: scale(1.08);
+    }
+
+    .reply-message-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+
+    /* =====================================================
+       MESSAGE MENU
+    ===================================================== */
+
+    .message-menu {
+        position: absolute;
+
+        top: calc(100% + 7px);
+
+        min-width: 190px;
+
+        padding: 6px;
+
+        background: var(--delete-bg);
+
+        border: 1px solid var(--chat-border);
+
+        border-radius: 12px;
+
+        box-shadow:
+            0 15px 45px rgba(0, 0, 0, 0.45);
+
+        z-index: 500;
+
+        opacity: 0;
+
+        transform: translateY(-5px) scale(0.96);
+
+        pointer-events: none;
+
+        transition:
+            opacity 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .message-menu.show {
+        opacity: 1;
+
+        transform: translateY(0) scale(1);
+
+        pointer-events: auto;
+    }
+
+    .nextura-message-row.sent .message-menu {
+        right: 0;
+    }
+
+    .nextura-message-row.received .message-menu {
+        left: 0;
+    }
+
+    .message-menu button {
+        width: 100%;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 10px;
+
+        padding: 9px 10px;
+
+        border: none;
+
+        border-radius: 8px;
+
+        background: transparent;
+
+        color: var(--chat-text);
+
+        text-align: left;
+
+        cursor: pointer;
+
+        font-size: 14px;
+    }
+
+    .message-menu button:hover {
+        background: rgba(255, 69, 0, 0.12);
+    }
+
+    .message-menu button.edit-message-btn {
+        color: #ffb74d;
+    }
+
+    .message-menu button.delete-everyone {
+        color: var(--danger);
+    }
+
+    .message-menu button i {
+        width: 18px;
+        text-align: center;
+    }
+
+
+    /* =====================================================
+       DELETED MESSAGE
+    ===================================================== */
+
+    .deleted-message {
+        display: flex;
+
+        align-items: center;
+
+        gap: 7px;
+
+        font-style: italic;
+
+        opacity: 0.72;
+    }
+
+    .deleted-message i {
+        font-size: 13px;
     }
 
 
@@ -472,7 +631,7 @@ dark-mode
 
 
     /* =====================================================
-       REPLY COMPOSER
+       EDITING / REPLY COMPOSER
     ===================================================== */
 
     #reply-composer {
@@ -492,31 +651,32 @@ dark-mode
 
         border-radius: 8px;
 
-        animation:
-            replyComposerIn 0.18s ease;
+        animation: replyComposerIn 0.18s ease;
     }
 
     #reply-composer.show {
         display: flex;
     }
 
+    #reply-composer.editing {
+        background: var(--edit-bg);
+        border-left-color: var(--edit-border);
+    }
+
     @keyframes replyComposerIn {
         from {
             opacity: 0;
-
             transform: translateY(5px);
         }
 
         to {
             opacity: 1;
-
             transform: translateY(0);
         }
     }
 
     .reply-composer-content {
         flex: 1;
-
         min-width: 0;
     }
 
@@ -530,6 +690,10 @@ dark-mode
         color: var(--chat-accent);
 
         margin-bottom: 2px;
+    }
+
+    #reply-composer.editing .reply-composer-label {
+        color: #ff9800;
     }
 
     .reply-composer-text {
@@ -578,7 +742,6 @@ dark-mode
 
     #cancel-reply:hover {
         background: rgba(255, 69, 0, 0.25);
-
         transform: rotate(90deg);
     }
 
@@ -640,7 +803,6 @@ dark-mode
 
     .nextura-chat-input .form-control::placeholder {
         color: var(--chat-muted) !important;
-
         opacity: 1;
     }
 
@@ -682,12 +844,32 @@ dark-mode
 
     .nextura-send-btn:hover {
         background: #ff6a00;
-
         color: #ffffff;
     }
 
     .nextura-send-btn:active {
         transform: scale(0.96);
+    }
+
+    #voice-btn.recording {
+        background: #dc3545 !important;
+        color: #ffffff !important;
+        border-color: #dc3545 !important;
+        animation: recordingPulse 1s infinite;
+    }
+
+    @keyframes recordingPulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.5);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+        }
     }
 
 
@@ -748,9 +930,7 @@ dark-mode
 
     .emoji-header {
         flex-shrink: 0;
-
         padding: 8px;
-
         border-bottom: 1px solid var(--chat-border);
     }
 
@@ -819,15 +999,15 @@ dark-mode
 
         display: grid;
 
-        grid-template-columns:
-            repeat(8, 1fr);
+        grid-template-columns: repeat(8, 1fr);
 
         gap: 6px;
 
         overflow-y: auto;
     }
 
-    .emoji-btn {
+    .emoji-btn,
+    .emoji-item {
         font-size: 22px;
 
         text-align: center;
@@ -845,10 +1025,33 @@ dark-mode
             transform 0.15s ease;
     }
 
-    .emoji-btn:hover {
+    .emoji-btn:hover,
+    .emoji-item:hover {
         background: rgba(255, 69, 0, 0.15);
-
         transform: scale(1.15);
+    }
+
+
+    /* =====================================================
+       REPLY HIGHLIGHT
+    ===================================================== */
+
+    .reply-highlight {
+        animation: replyHighlight 1.5s ease;
+    }
+
+    @keyframes replyHighlight {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 69, 0, 0.8);
+        }
+
+        50% {
+            box-shadow: 0 0 0 5px rgba(255, 69, 0, 0.35);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 69, 0, 0);
+        }
     }
 
 
@@ -926,7 +1129,51 @@ dark-mode
         }
 
         .message-actions {
-            display: none;
+            opacity: 1;
+
+            pointer-events: auto;
+
+            position: static;
+
+            transform: none;
+
+            margin-top: 4px;
+        }
+
+        .nextura-message-row.sent .message-actions,
+        .nextura-message-row.received .message-actions {
+            position: absolute;
+        }
+
+        .nextura-message-row.sent .message-actions {
+            right: -76px;
+        }
+
+        .nextura-message-row.received .message-actions {
+            left: -76px;
+        }
+
+        .message-menu {
+            position: fixed;
+
+            left: 50% !important;
+            right: auto !important;
+
+            top: auto;
+
+            bottom: 75px;
+
+            transform:
+                translateX(-50%)
+                translateY(10px)
+                scale(0.96);
+        }
+
+        .message-menu.show {
+            transform:
+                translateX(-50%)
+                translateY(0)
+                scale(1);
         }
     }
 
@@ -1100,6 +1347,7 @@ dark-mode
                                 received
                             {% endif %}
                         "
+                        data-message-row-id="{{ msg.id }}"
                     >
 
                         <div
@@ -1121,80 +1369,112 @@ dark-mode
                                     {% else %}
                                         other
                                     {% endif %}
+                                    {% if msg.deleted_for_everyone %}
+                                        deleted-bubble
+                                    {% endif %}
                                 "
                                 data-message-id="{{ msg.id }}"
                                 data-sender-id="{{ msg.sender_id }}"
                                 data-receiver-id="{{ msg.receiver_id }}"
                                 data-message-type="{{ msg.message_type }}"
+                                data-deleted-for-everyone="{{ msg.deleted_for_everyone or 0 }}"
+                                data-edited="{{ msg.edited|default(0) }}"
+                                data-message-preview="{% if msg.message_type == 'voice' %}🎙 Voice message{% elif msg.deleted_for_everyone %}🚫 This message was deleted{% else %}{{ msg.message }}{% endif %}"
+                                data-sender-name="{% if msg.sender_id == my_id %}You{% else %}{{ receiver.username }}{% endif %}"
                             >
 
-                                <!-- =================================
-                                     REPLY PREVIEW
-                                ================================== -->
+                                {% if msg.deleted_for_everyone %}
 
-                                {% if msg.reply_to_id %}
-
-                                    {% set replied_message = messages
-                                        |selectattr("id", "equalto", msg.reply_to_id)
-                                        |list
-                                        |first
-                                    %}
-
-                                    {% if replied_message %}
-
-                                        <div
-                                            class="message-reply-preview"
-                                            data-reply-target="{{ msg.reply_to_id }}"
-                                            title="View replied message"
-                                        >
-
-                                            <span class="reply-preview-name">
-                                                {% if replied_message.sender_id == my_id %}
-                                                    You
-                                                {% else %}
-                                                    {{ receiver.username }}
-                                                {% endif %}
-                                            </span>
-
-                                            <span class="reply-preview-text">
-
-                                                {% if replied_message.message_type == 'voice' %}
-
-                                                    🎙 Voice message
-
-                                                {% else %}
-
-                                                    {{ replied_message.message }}
-
-                                                {% endif %}
-
-                                            </span>
-
-                                        </div>
-
-                                    {% endif %}
-
-                                {% endif %}
-
-
-                                <!-- =================================
-                                     MESSAGE CONTENT
-                                ================================== -->
-
-                                {% if msg.message_type == 'voice' %}
-
-                                    <audio controls>
-                                        <source
-                                            src="{{ url_for(
-                                                'static',
-                                                filename='uploads/voices/' ~ msg.message
-                                            ) }}"
-                                        >
-                                    </audio>
+                                    <div class="deleted-message">
+                                        <i class="bi bi-slash-circle"></i>
+                                        <span>This message was deleted</span>
+                                    </div>
 
                                 {% else %}
 
-                                    {{ msg.message }}
+                                    <!-- =================================
+                                         REPLY PREVIEW
+                                    ================================== -->
+
+                                    {% if msg.reply_to_id %}
+
+                                        {% set replied_message = messages
+                                            |selectattr("id", "equalto", msg.reply_to_id)
+                                            |list
+                                            |first
+                                        %}
+
+                                        {% if replied_message %}
+
+                                            <div
+                                                class="message-reply-preview"
+                                                data-reply-target="{{ msg.reply_to_id }}"
+                                                title="View replied message"
+                                            >
+
+                                                <span class="reply-preview-name">
+
+                                                    {% if replied_message.sender_id == my_id %}
+                                                        You
+                                                    {% else %}
+                                                        {{ receiver.username }}
+                                                    {% endif %}
+
+                                                </span>
+
+                                                <span class="reply-preview-text">
+
+                                                    {% if replied_message.deleted_for_everyone %}
+
+                                                        🚫 This message was deleted
+
+                                                    {% elif replied_message.message_type == 'voice' %}
+
+                                                        🎙 Voice message
+
+                                                    {% else %}
+
+                                                        {{ replied_message.message }}
+
+                                                    {% endif %}
+
+                                                </span>
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    {% endif %}
+
+
+                                    <!-- =================================
+                                         MESSAGE CONTENT
+                                    ================================== -->
+
+                                    {% if msg.message_type == 'voice' %}
+
+                                        <audio controls>
+                                            <source
+                                                src="{{ url_for(
+                                                    'static',
+                                                    filename='uploads/voices/' ~ msg.message
+                                                ) }}"
+                                            >
+                                        </audio>
+
+                                    {% else %}
+
+                                        <span class="message-text">{{ msg.message }}</span>
+
+                                        {% if msg.edited|default(0) %}
+
+                                            <span class="edited-indicator">
+                                                edited
+                                            </span>
+
+                                        {% endif %}
+
+                                    {% endif %}
 
                                 {% endif %}
 
@@ -1202,8 +1482,8 @@ dark-mode
 
 
                             <!-- =================================
-                                 REPLY BUTTON
-                            ================================== -->
+                                 MESSAGE ACTIONS
+                            ================================= -->
 
                             <div class="message-actions">
 
@@ -1213,9 +1493,74 @@ dark-mode
                                     data-message-id="{{ msg.id }}"
                                     data-message-type="{{ msg.message_type }}"
                                     title="Reply"
+                                    {% if msg.deleted_for_everyone %}
+                                        disabled
+                                    {% endif %}
                                 >
                                     <i class="bi bi-reply-fill"></i>
                                 </button>
+
+
+                                <button
+                                    type="button"
+                                    class="message-menu-btn"
+                                    data-message-id="{{ msg.id }}"
+                                    title="Message options"
+                                >
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+
+
+                                <!-- =================================
+                                     MESSAGE MENU
+                                ================================= -->
+
+                                <div
+                                    class="message-menu"
+                                    data-menu-message-id="{{ msg.id }}"
+                                >
+
+                                    {% if msg.sender_id == my_id
+                                          and msg.message_type != 'voice'
+                                          and not msg.deleted_for_everyone %}
+
+                                        <button
+                                            type="button"
+                                            class="edit-message-btn"
+                                            data-message-id="{{ msg.id }}"
+                                        >
+                                            <i class="bi bi-pencil-square"></i>
+                                            <span>Edit</span>
+                                        </button>
+
+                                    {% endif %}
+
+
+                                    <button
+                                        type="button"
+                                        class="delete-for-me-btn"
+                                        data-message-id="{{ msg.id }}"
+                                    >
+                                        <i class="bi bi-trash"></i>
+                                        <span>Delete for me</span>
+                                    </button>
+
+
+                                    {% if msg.sender_id == my_id
+                                          and not msg.deleted_for_everyone %}
+
+                                        <button
+                                            type="button"
+                                            class="delete-everyone delete-for-everyone-btn"
+                                            data-message-id="{{ msg.id }}"
+                                        >
+                                            <i class="bi bi-trash3-fill"></i>
+                                            <span>Delete for everyone</span>
+                                        </button>
+
+                                    {% endif %}
+
+                                </div>
 
                             </div>
 
@@ -1236,7 +1581,7 @@ dark-mode
 
 
                 <!-- =================================================
-                     REPLY COMPOSER
+                     REPLY / EDIT COMPOSER
                 ================================================== -->
 
                 <div
@@ -1264,7 +1609,7 @@ dark-mode
                     <button
                         type="button"
                         id="cancel-reply"
-                        title="Cancel reply"
+                        title="Cancel"
                     >
                         <i class="bi bi-x-lg"></i>
                     </button>
@@ -1313,6 +1658,7 @@ dark-mode
 
                     <button
                         type="submit"
+                        id="send-message-btn"
                         class="btn nextura-send-btn"
                         title="Send message"
                     >
