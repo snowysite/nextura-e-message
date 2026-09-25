@@ -1,172 +1,1043 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "layout.html" %}
 
-<head>
-    <title>Chat | Nextura-E-Message</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% block title %}
+Chat | Nextura-E-Message
+{% endblock %}
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+{% block body_class %}
+dark-mode
+{% endblock %}
 
-    <!-- Custom CSS (FIXED PATH) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block content %}
 
-    <style>
-        :root {
-            --bg-dark: #151515;
-            --bg-light: #f4f4f4;
-            --chat-dark: #1a1a1a;
-            --chat-light: #ffffff;
-            --me: #ff4500;
-            --them-dark: #333;
-            --them-light: #e6e6e6;
-            --text-dark: #fff;
-            --text-light: #111;
+<style>
+    /* =====================================================
+       CHAT THEME VARIABLES
+    ===================================================== */
+
+    :root {
+        --chat-bg: #0f0f0f;
+        --chat-panel: #151515;
+        --chat-text: #ffffff;
+        --chat-muted: rgba(255, 255, 255, 0.55);
+        --chat-accent: orangered;
+        --chat-other: #2a2a2a;
+        --chat-border: rgba(255, 255, 255, 0.09);
+    }
+
+    body.light-mode {
+        --chat-bg: #ffffff;
+        --chat-panel: #f4f4f4;
+        --chat-text: #111111;
+        --chat-muted: rgba(0, 0, 0, 0.5);
+        --chat-accent: #ff6a00;
+        --chat-other: #e9e9e9;
+        --chat-border: rgba(0, 0, 0, 0.12);
+    }
+
+
+    /* =====================================================
+       MAIN CHAT WRAPPER
+    ===================================================== */
+
+    .nextura-chat-wrapper {
+        width: 100%;
+        height: calc(100vh - 110px);
+        min-height: 560px;
+
+        background: var(--chat-bg);
+        color: var(--chat-text);
+
+        border: 1px solid var(--chat-border);
+        border-radius: 14px;
+
+        overflow: hidden;
+
+        box-sizing: border-box;
+    }
+
+    .nextura-chat-wrapper > .row {
+        height: 100%;
+        min-height: 0;
+    }
+
+
+    /* =====================================================
+       SIDEBAR
+    ===================================================== */
+
+    .nextura-chat-sidebar {
+        height: 100%;
+
+        background: var(--chat-panel);
+
+        border-right: 1px solid var(--chat-border);
+
+        min-height: 0;
+    }
+
+    .nextura-chat-sidebar-title {
+        padding: 15px;
+
+        font-weight: 700;
+
+        border-bottom: 1px solid var(--chat-border);
+    }
+
+    .nextura-chat-sidebar a {
+        display: block;
+
+        padding: 12px 15px;
+
+        color: var(--chat-text);
+
+        text-decoration: none;
+
+        transition:
+            background 0.2s ease,
+            color 0.2s ease;
+    }
+
+    .nextura-chat-sidebar a:hover {
+        background: rgba(255, 69, 0, 0.12);
+
+        color: var(--chat-accent);
+    }
+
+
+    /* =====================================================
+       CHAT AREA
+    ===================================================== */
+
+    .nextura-chat-area {
+        height: 100%;
+        min-height: 0;
+
+        display: flex;
+        flex-direction: column;
+
+        background: var(--chat-bg);
+
+        overflow: hidden;
+    }
+
+
+    /* =====================================================
+       CHAT HEADER
+    ===================================================== */
+
+    .nextura-chat-header {
+        flex-shrink: 0;
+
+        display: flex;
+        align-items: center;
+
+        min-height: 64px;
+
+        padding: 10px 15px;
+
+        background: var(--chat-panel);
+
+        border-bottom: 1px solid var(--chat-border);
+    }
+
+    .nextura-chat-header img {
+        width: 42px;
+        height: 42px;
+
+        object-fit: cover;
+
+        border: 2px solid rgba(255, 69, 0, 0.35);
+    }
+
+    .nextura-chat-name {
+        font-weight: 700;
+
+        color: var(--chat-text);
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+
+    /* =====================================================
+       CALL STATUS
+    ===================================================== */
+
+    #call-status {
+        display: none;
+
+        flex-shrink: 0;
+
+        padding: 7px;
+
+        text-align: center;
+
+        background: var(--chat-panel);
+
+        color: var(--chat-accent);
+
+        font-size: 14px;
+
+        font-weight: 700;
+
+        border-bottom: 1px solid var(--chat-border);
+    }
+
+
+    /* =====================================================
+       MESSAGE AREA
+    ===================================================== */
+
+    #chat-box {
+        flex: 1 1 auto;
+
+        min-height: 0;
+
+        width: 100%;
+
+        padding: 15px;
+
+        overflow-y: auto;
+        overflow-x: hidden;
+
+        background: var(--chat-bg);
+
+        box-sizing: border-box;
+
+        scroll-behavior: smooth;
+    }
+
+    #chat-box::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #chat-box::-webkit-scrollbar-thumb {
+        background: rgba(255, 69, 0, 0.4);
+        border-radius: 20px;
+    }
+
+    #chat-box::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+
+    /* =====================================================
+       CHAT BUBBLES
+    ===================================================== */
+
+    .chat-bubble {
+        width: fit-content;
+        max-width: 70%;
+
+        padding: 10px 14px;
+
+        margin-bottom: 8px;
+
+        border-radius: 16px;
+
+        word-break: break-word;
+        overflow-wrap: anywhere;
+
+        line-height: 1.45;
+
+        animation:
+            messageAppear 0.2s ease;
+    }
+
+    .chat-bubble.me {
+        margin-left: auto;
+
+        background: orangered;
+
+        color: #ffffff;
+
+        border-bottom-right-radius: 4px;
+    }
+
+    .chat-bubble.other {
+        margin-right: auto;
+
+        background: var(--chat-other);
+
+        color: var(--chat-text);
+
+        border-bottom-left-radius: 4px;
+    }
+
+    @keyframes messageAppear {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
         }
 
-        body.dark-mode { background: var(--bg-dark); color: var(--text-dark); }
-        body.light-mode { background: var(--bg-light); color: var(--text-light); }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 
-        .chat-card {
-            height: calc(100vh - 220px);
-            overflow-y: auto;
-            padding: 15px;
-            border-radius: 14px;
-            background: var(--chat-dark);
+
+    /* =====================================================
+       VOICE MESSAGES
+    ===================================================== */
+
+    .chat-bubble audio {
+        display: block;
+
+        width: 220px;
+        max-width: 100%;
+    }
+
+
+    /* =====================================================
+       MESSAGE INPUT AREA
+    ===================================================== */
+
+    .nextura-chat-input {
+        position: relative;
+
+        flex-shrink: 0;
+
+        width: 100%;
+
+        padding: 12px;
+
+        background: var(--chat-panel);
+
+        border-top: 1px solid var(--chat-border);
+
+        box-sizing: border-box;
+    }
+
+    #chat-form {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .nextura-chat-input .form-control {
+        display: block;
+
+        width: 100%;
+
+        min-width: 0;
+        min-height: 44px;
+
+        background: var(--chat-bg) !important;
+
+        color: var(--chat-text) !important;
+
+        border: 1px solid var(--chat-border) !important;
+
+        opacity: 1 !important;
+
+        box-shadow: none !important;
+    }
+
+    .nextura-chat-input .form-control:focus {
+        background: var(--chat-bg) !important;
+
+        color: var(--chat-text) !important;
+
+        border-color: orangered !important;
+
+        box-shadow:
+            0 0 0 0.15rem rgba(255, 69, 0, 0.15) !important;
+    }
+
+    .nextura-chat-input .form-control::placeholder {
+        color: var(--chat-muted) !important;
+
+        opacity: 1;
+    }
+
+
+    /* =====================================================
+       INPUT BUTTONS
+    ===================================================== */
+
+    #emoji-btn,
+    #voice-btn {
+        flex-shrink: 0;
+
+        width: 44px;
+        height: 44px;
+
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+    }
+
+    .nextura-send-btn {
+        flex-shrink: 0;
+
+        width: 44px;
+        height: 44px;
+
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        background: orangered;
+
+        border: none;
+
+        color: #ffffff;
+    }
+
+    .nextura-send-btn:hover {
+        background: #ff6a00;
+
+        color: #ffffff;
+    }
+
+    .nextura-send-btn:active {
+        transform: scale(0.96);
+    }
+
+
+    /* =====================================================
+       EMOJI PICKER
+    ===================================================== */
+
+    .emoji-picker {
+        position: absolute;
+
+        bottom: 72px;
+        right: 15px;
+
+        width: 320px;
+        max-width: calc(100vw - 30px);
+
+        height: 360px;
+        max-height: 60vh;
+
+        display: flex;
+        flex-direction: column;
+
+        background: var(--chat-panel);
+
+        border: 1px solid var(--chat-border);
+
+        border-radius: 16px;
+
+        box-shadow:
+            0 20px 50px rgba(0, 0, 0, 0.6);
+
+        transform:
+            translateY(15px)
+            scale(0.9);
+
+        opacity: 0;
+
+        pointer-events: none;
+
+        transition:
+            opacity 0.2s ease,
+            transform 0.2s ease;
+
+        z-index: 1000;
+
+        overflow: hidden;
+    }
+
+    .emoji-picker.show {
+        transform:
+            translateY(0)
+            scale(1);
+
+        opacity: 1;
+
+        pointer-events: auto;
+    }
+
+    .emoji-header {
+        flex-shrink: 0;
+
+        padding: 8px;
+
+        border-bottom: 1px solid var(--chat-border);
+    }
+
+    .emoji-header input {
+        width: 100%;
+
+        padding: 8px 10px;
+
+        border-radius: 10px;
+
+        background: var(--chat-bg);
+
+        border: 1px solid var(--chat-border);
+
+        color: var(--chat-text);
+
+        outline: none;
+
+        box-sizing: border-box;
+    }
+
+    .emoji-header input::placeholder {
+        color: var(--chat-muted);
+    }
+
+    .emoji-tabs {
+        flex-shrink: 0;
+
+        display: flex;
+
+        justify-content: space-around;
+
+        padding: 6px 0;
+
+        border-bottom: 1px solid var(--chat-border);
+    }
+
+    .emoji-tab {
+        cursor: pointer;
+
+        font-size: 18px;
+
+        padding: 6px;
+
+        border-radius: 8px;
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .emoji-tab:hover {
+        transform: scale(1.1);
+    }
+
+    .emoji-tab.active {
+        background: rgba(255, 69, 0, 0.25);
+    }
+
+    .emoji-grid {
+        flex: 1;
+
+        min-height: 0;
+
+        padding: 10px;
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(8, 1fr);
+
+        gap: 6px;
+
+        overflow-y: auto;
+    }
+
+    .emoji-btn {
+        font-size: 22px;
+
+        text-align: center;
+
+        padding: 6px;
+
+        border-radius: 8px;
+
+        cursor: pointer;
+
+        user-select: none;
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .emoji-btn:hover {
+        background: rgba(255, 69, 0, 0.15);
+
+        transform: scale(1.15);
+    }
+
+
+    /* =====================================================
+       INCOMING CALL
+    ===================================================== */
+
+    #incoming-call {
+        z-index: 2000;
+
+        width: min(360px, calc(100vw - 30px));
+
+        background: #151515 !important;
+
+        border: 1px solid rgba(255, 69, 0, 0.35);
+    }
+
+
+    /* =====================================================
+       MOBILE
+    ===================================================== */
+
+    @media (max-width: 767px) {
+
+        .nextura-chat-wrapper {
+            height: calc(100vh - 90px);
+
+            min-height: 0;
+
+            border-radius: 0;
+
+            border-left: none;
+            border-right: none;
         }
 
-        body.light-mode .chat-card { background: var(--chat-light); }
+        .nextura-chat-sidebar {
+            display: none !important;
+        }
 
-        .chat-me, .chat-them {
-            padding: 8px 14px;
-            border-radius: 18px;
-            display: inline-block;
+        .chat-bubble {
             max-width: 85%;
         }
 
-        .chat-me { background: var(--me); color: #fff; }
-        .chat-them { background: var(--them-dark); color: #fff; }
-        body.light-mode .chat-them { background: var(--them-light); color: #111; }
-
-        .flash-send { animation: flash .3s; }
-        @keyframes flash { 0%{opacity:.4}50%{opacity:1}100%{opacity:.4} }
-
-        #status-dot {
-            width: 12px; height: 12px; border-radius: 50%;
-            background: gray; animation: pulse 1.5s infinite;
+        .nextura-chat-input {
+            padding: 8px;
         }
-        @keyframes pulse {
-            0%{transform:scale(1)}
-            50%{transform:scale(1.3);opacity:.6}
-            100%{transform:scale(1)}
+
+        #emoji-btn,
+        #voice-btn,
+        .nextura-send-btn {
+            width: 42px;
+            height: 42px;
         }
-    </style>
-</head>
 
-<body class="dark-mode">
+        .emoji-picker {
+            right: 50%;
 
-<nav class="navbar navbar-dark" style="background:#151515;">
-    <div class="container-fluid">
-        <a class="navbar-brand d-flex align-items-center" href="/dashboard">
-            <img src="{{ url_for('static', filename='images/WhatsApp Image 2026-01-15 at 7.21.47 PM.jpeg') }}"
-                 width="30" height="30" class="me-2">
-            <span style="color:#ff4500;font-weight:bold;">Nextura-E-Message</span>
-        </a>
+            width: calc(100vw - 20px);
 
-        <div class="d-flex align-items-center">
-            <span id="status-dot" class="me-2"></span>
-            <span id="status-text" class="me-3">Offline</span>
-            <a href="/logout" class="btn btn-outline-warning btn-sm me-2">Logout</a>
-            <button id="theme-toggle" class="btn btn-outline-light btn-sm">🌙</button>
-        </div>
-    </div>
-</nav>
+            max-width: calc(100vw - 20px);
 
-<div class="container-fluid mt-3">
-    <div class="row justify-content-center">
-        <div class="col-12 col-md-8 col-lg-6">
+            transform:
+                translate(50%, 15px)
+                scale(0.95);
+        }
 
-            <h5 class="mb-3" style="color:#ff4500;">Chat with {{ receiver.username }}</h5>
+        .emoji-picker.show {
+            transform:
+                translate(50%, 0)
+                scale(1);
+        }
+    }
 
-            <div id="chat-box" class="chat-card mb-2">
-                {% for msg in messages %}
-                <div class="{{ 'text-end' if msg.sender_id == my_id else 'text-start' }} mb-2">
-                    <span class="{{ 'chat-me' if msg.sender_id == my_id else 'chat-them' }}">
-                        {{ msg.message }}
-                    </span>
-                </div>
-                {% endfor %}
+    @media (max-width: 480px) {
+
+        .nextura-chat-header {
+            padding: 8px 10px;
+        }
+
+        .nextura-chat-header img {
+            width: 38px;
+            height: 38px;
+        }
+
+        #chat-box {
+            padding: 10px;
+        }
+
+        .chat-bubble {
+            max-width: 90%;
+        }
+
+        .nextura-chat-input .form-control {
+            min-width: 0;
+        }
+    }
+</style>
+
+
+<!-- =====================================================
+     MAIN CHAT
+===================================================== -->
+
+<div class="nextura-chat-wrapper">
+
+    <div class="row g-0 h-100">
+
+
+        <!-- =================================================
+             SIDEBAR
+        ================================================== -->
+
+        <div
+            class="
+                col-md-3
+                col-lg-2
+                nextura-chat-sidebar
+                d-none
+                d-md-flex
+                flex-column
+            "
+        >
+
+            <div class="nextura-chat-sidebar-title">
+                Menu
             </div>
 
-            <form id="chat-form" class="d-flex gap-2">
-                <div id="typing-indicator" style="height:18px;color:#ff8c00;"></div>
-                <input id="chat-input" class="form-control" placeholder="Type a message..." required>
-                <button class="btn" style="background:#ff4500;color:white;">Send</button>
-            </form>
+            <a href="/dashboard">
+                <i class="bi bi-speedometer2 me-2"></i>
+                Dashboard
+            </a>
 
-            <a href="/users" class="btn btn-link mt-2" style="color:#ff8c00;">Back to Users</a>
+            <a href="/users">
+                <i class="bi bi-chat-dots me-2"></i>
+                Chats
+            </a>
+
+            <div class="mt-auto p-3">
+
+                <button
+                    class="btn btn-outline-warning w-100"
+                    type="button"
+                >
+                    + Invite User
+                </button>
+
+            </div>
+
         </div>
+
+
+        <!-- =================================================
+             CHAT AREA
+        ================================================== -->
+
+        <div
+            class="
+                col-12
+                col-md-9
+                col-lg-10
+                nextura-chat-area
+            "
+        >
+
+
+            <!-- =================================================
+                 CHAT HEADER
+            ================================================== -->
+
+            <div class="nextura-chat-header">
+
+                <img
+                    src="{{ url_for(
+                        'static',
+                        filename='uploads/avatars/' ~
+                        (receiver.profile_image or 'default.png')
+                    ) }}"
+                    class="rounded-circle me-2"
+                    alt="{{ receiver.username }}"
+                >
+
+                <div
+                    class="nextura-chat-name"
+                    title="{{ receiver.username }}"
+                >
+                    {{ receiver.username }}
+                </div>
+
+                <div class="ms-auto d-flex gap-2">
+
+                    <button
+                        id="call-btn"
+                        class="btn btn-outline-success btn-sm"
+                        type="button"
+                        title="Call"
+                    >
+                        <i class="bi bi-telephone"></i>
+                    </button>
+
+                    <button
+                        id="end-call-btn"
+                        class="btn btn-outline-danger btn-sm d-none"
+                        type="button"
+                        title="End call"
+                    >
+                        <i class="bi bi-telephone-x"></i>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 CALL STATUS
+            ================================================== -->
+
+            <div id="call-status">
+                Calling…
+            </div>
+
+
+            <!-- =================================================
+                 MESSAGE AREA
+            ================================================== -->
+
+            <div id="chat-box">
+
+                {% for msg in messages %}
+
+                    <div
+                        class="
+                            chat-bubble
+                            {% if msg.sender_id == my_id %}
+                                me
+                            {% else %}
+                                other
+                            {% endif %}
+                        "
+                    >
+
+                        {% if msg.message_type == 'voice' %}
+
+                            <audio controls>
+                                <source
+                                    src="{{ url_for(
+                                        'static',
+                                        filename='uploads/voices/' ~ msg.message
+                                    ) }}"
+                                >
+                            </audio>
+
+                        {% else %}
+
+                            {{ msg.message }}
+
+                        {% endif %}
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+
+            <!-- =================================================
+                 MESSAGE INPUT
+            ================================================== -->
+
+            <div class="nextura-chat-input">
+
+                <form
+                    id="chat-form"
+                    class="d-flex align-items-center gap-2"
+                >
+
+                    <button
+                        type="button"
+                        id="emoji-btn"
+                        class="btn btn-outline-secondary"
+                        title="Emoji"
+                    >
+                        😊
+                    </button>
+
+
+                    <button
+                        type="button"
+                        id="voice-btn"
+                        class="btn btn-outline-secondary"
+                        title="Voice message"
+                    >
+                        <i class="bi bi-mic"></i>
+                    </button>
+
+
+                    <input
+                        type="text"
+                        id="chat-input"
+                        class="form-control"
+                        placeholder="Type a message..."
+                        autocomplete="off"
+                        spellcheck="true"
+                    >
+
+
+                    <button
+                        type="submit"
+                        class="btn nextura-send-btn"
+                        title="Send message"
+                    >
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+
+                </form>
+
+
+                <!-- =================================================
+                     EMOJI PICKER
+                ================================================== -->
+
+                <div
+                    id="emojiPicker"
+                    class="emoji-picker"
+                >
+
+                    <div class="emoji-header">
+
+                        <input
+                            type="text"
+                            id="emojiSearch"
+                            placeholder="Search emoji..."
+                            autocomplete="off"
+                        >
+
+                    </div>
+
+
+                    <div class="emoji-tabs">
+
+                        <span
+                            class="emoji-tab active"
+                            data-cat="recent"
+                            title="Recent"
+                        >
+                            🕘
+                        </span>
+
+                        <span
+                            class="emoji-tab"
+                            data-cat="smileys"
+                            title="Smileys"
+                        >
+                            😀
+                        </span>
+
+                        <span
+                            class="emoji-tab"
+                            data-cat="hands"
+                            title="Hands"
+                        >
+                            👍
+                        </span>
+
+                        <span
+                            class="emoji-tab"
+                            data-cat="hearts"
+                            title="Hearts"
+                        >
+                            ❤️
+                        </span>
+
+                        <span
+                            class="emoji-tab"
+                            data-cat="symbols"
+                            title="Symbols"
+                        >
+                            🔥
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        id="emojiGrid"
+                        class="emoji-grid"
+                    ></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
+
 </div>
 
-<!-- Socket.IO (REQUIRED) -->
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='chat.js') }}"></script>
+
+<!-- =====================================================
+     INCOMING CALL
+===================================================== -->
+
+<div
+    id="incoming-call"
+    class="
+        position-fixed
+        top-50
+        start-50
+        translate-middle
+        text-white
+        p-4
+        rounded
+        shadow
+        d-none
+    "
+>
+
+    <h5>
+        📞 Incoming Call
+    </h5>
+
+    <div class="mt-3 d-flex gap-2">
+
+        <button
+            id="accept-call"
+            class="btn btn-success"
+            type="button"
+        >
+            Accept
+        </button>
+
+        <button
+            id="reject-call"
+            class="btn btn-danger"
+            type="button"
+        >
+            Reject
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     CALL AUDIO
+===================================================== -->
+
+<audio
+    id="remote-audio"
+    autoplay
+></audio>
+
+<audio
+    id="ringtone"
+    src="/static/sounds/ringtone.mp3"
+    loop
+></audio>
+
+<audio
+    id="ringback"
+    src="/static/sounds/ringback.mp3"
+    loop
+></audio>
+
+
+<!-- =====================================================
+     CHAT VARIABLES
+===================================================== -->
 
 <script>
-const socket = io();
-
-const chatBox = document.getElementById('chat-box');
-const input = document.getElementById('chat-input');
-const form = document.getElementById('chat-form');
-const typingIndicator = document.getElementById('typing-indicator');
-
-const senderId = {{ my_id }};
-const receiverId = {{ receiver.id }};
-let typingTimeout;
-
-socket.emit('join', { sender_id: senderId, receiver_id: receiverId });
-
-input.addEventListener('input', () => {
-    socket.emit('typing', { sender_id: senderId, receiver_id: receiverId, typing: true });
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        socket.emit('typing', { sender_id: senderId, receiver_id: receiverId, typing: false });
-    }, 1000);
-});
-
-socket.on('display_typing', data => {
-    if (data.sender_id === receiverId) {
-        typingIndicator.textContent = data.typing ? 'Typing...' : '';
-    }
-});
-
-form.addEventListener('submit', e => {
-    e.preventDefault();
-    const msg = input.value.trim();
-    if (!msg) return;
-
-    const tempId = Date.now();
-    socket.emit('send_message', {
-        sender_id: senderId,
-        receiver_id: receiverId,
-        message: msg,
-        temp_id: tempId
-    });
-
-    input.value = '';
-});
-
-socket.on('connect', () => {
-    document.getElementById('status-dot').style.background = 'limegreen';
-    document.getElementById('status-text').textContent = 'Online';
-});
-
-socket.on('disconnect', () => {
-    document.getElementById('status-dot').style.background = 'gray';
-    document.getElementById('status-text').textContent = 'Offline';
-});
+    window.SENDER_ID = {{ my_id }};
+    window.RECEIVER_ID = {{ receiver.id }};
 </script>
 
-</body>
-</html>
+{% endblock %}
+
+
+{% block scripts %}
+
+<script src="{{ url_for('static', filename='chat.js') }}"></script>
+
+{% endblock %}

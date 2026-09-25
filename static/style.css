@@ -1,148 +1,560 @@
+/* ===================== THEME VARIABLES ===================== */
 :root {
-    --nextura-orange: #ff4500;
-    --nextura-black: #0b0b0b;
-    --nextura-dark: #151515;
-    --nextura-gray: #b5b5b5;
+  --bg-main: #0f0f0f;
+  --bg-secondary: #151515;
+  --bg-card: #1b1b1b;
+
+  --text-main: #ffffff;
+  --text-muted: #9a9a9a;
+
+  --accent: #ff4500;
+  --accent-hover: #ff6a00;
+
+  --bubble-me: #ff4500;
+  --bubble-them: #2a2a2a;
 }
 
-/* Global */
+/* LIGHT MODE */
+body.light-mode {
+  --bg-main: #f6f6f6;
+  --bg-secondary: #ffffff;
+  --bg-card: #ededed;
+
+  --text-main: #111111;
+  --text-muted: #666666;
+
+  --accent: #ff4500;
+  --bubble-me: #ff6a00;
+  --bubble-them: #dddddd;
+}
+
+/* ===================== GLOBAL ===================== */
 body {
-    background-color: var(--nextura-black) !important;
-    color: white;
+  background: var(--bg-main);
+  color: var(--text-main);
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
-/* Cards */
+/* ===================== NAVBAR + PANELS ===================== */
+.navbar,
+.sidebar,
+.chat-header,
+.chat-input {
+  background: var(--bg-secondary);
+  border-color: #222;
+}
+
+.sidebar {
+  border-right: 1px solid #222;
+}
+
 .card {
-    background-color: var(--nextura-dark);
-    color: white;
-    border: none;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: none;
 }
 
-/* Inputs */
-.form-control {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    color: white;
+/* ===================== LINKS & BUTTONS ===================== */
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
 }
 
-.form-control:focus {
-    background-color: #1e1e1e;
-    border-color: var(--nextura-orange);
-    box-shadow: none;
-    color: white;
-}
-
-/* Buttons */
 .btn-primary,
-.btn-success {
-    background-color: var(--nextura-orange);
-    border: none;
+.btn-success,
+.send-btn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
 }
 
 .btn-primary:hover,
-.btn-success:hover {
-    background-color: #ff5722;
+.btn-success:hover,
+.send-btn:hover {
+  background: var(--accent-hover);
 }
 
-/* Links */
-a {
-    color: var(--nextura-orange);
-    text-decoration: none;
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 20px;
 }
 
-a:hover {
-    color: #ff7043;
+/* ===================== INPUTS ===================== */
+input,
+textarea,
+.form-control {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid #333;
 }
 
-/* Sent messages (you) */
-.chat-me {
-    background-color: #ff4500;   /* Orange-red bubble */
-    color: #000000;              /* Black text for readability */
-    padding: 10px 15px;
-    border-radius: 20px 20px 0 20px; /* Rounded bubble shape */
-    display: inline-block;
-    max-width: 70%;
-    word-wrap: break-word;
+.form-control:focus {
+  border-color: var(--accent);
+  box-shadow: none;
 }
 
-/* Received messages (other user) */
-.chat-them {
-    background-color: #2a2a2a;  /* Dark gray bubble */
-    color: #ffffff;              /* White text */
-    padding: 10px 15px;
-    border-radius: 20px 20px 20px 0; /* Rounded bubble shape */
-    display: inline-block;
-    max-width: 70%;
-    word-wrap: break-word;
+/* ===================== CHAT LAYOUT ===================== */
+.chat-body,
+#chat-box {
+  background: var(--bg-main);
 }
 
-
-.chat-me:hover {
-    background-color: #e03e00; /* Darker orange-red */
+.message-row {
+  display: flex;
+  margin-bottom: 10px;
 }
 
-.text-end, .text-start {
-    margin-bottom: 8px;
+.message-row.me {
+  justify-content: flex-end;
 }
+
+.message-row.them {
+  justify-content: flex-start;
+}
+
+/* ===================== MESSAGE BUBBLES ===================== */
+.message-bubble,
+.chat-bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  word-wrap: break-word;
+  animation: pop-in 0.25s ease forwards;
+}
+
+/* YOU */
+.me .message-bubble,
+.chat-bubble.me {
+  background: var(--bubble-me);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  animation: slide-in-right 0.25s ease forwards;
+}
+
+/* THEM */
+.them .message-bubble,
+.chat-bubble.other {
+  background: var(--bubble-them);
+  color: var(--text-main);
+  border-bottom-left-radius: 4px;
+  animation: slide-in-left 0.25s ease forwards;
+}
+
+/* ===================== MESSAGE ANIMATIONS ===================== */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===================== TICKS & TIMESTAMPS ===================== */
+.tick {
+  font-size: 12px;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
 .chat-timestamp {
-    font-size: 0.75rem;
-    color: var(--nextura-gray);
-    margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
-/* Flash animation for sent messages */
-@keyframes flash-send {
-    0% { transform: scale(1); background-color: #ff4500; }
-    50% { transform: scale(1.05); background-color: #ff7033; } /* slightly brighter */
-    100% { transform: scale(1); background-color: #ff4500; }
+/* ===================== TYPING ===================== */
+#typing-indicator {
+  font-size: 13px;
+  color: var(--accent);
+  padding-left: 12px;
 }
 
-.flash-send {
-    animation: flash-send 0.3s ease;
+/* ===================== VOICE NOTES ===================== */
+audio,
+.voice-note {
+  max-width: 220px;
+  height: 36px;
 }
 
-body.light-mode {
-    background-color: #f8f9fa;
-    color: #151515;
+/* ===================== AVATARS ===================== */
+.avatar-preview {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--accent);
 }
 
-body.light-mode .card {
-    background-color: #ffffff;
-    color: #151515;
+/* ===================== SIDEBAR USERS ===================== */
+.chat-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  cursor: pointer;
 }
 
-body.dark-mode {
-    background-color: #151515;
-    color: #ffffff;
+.chat-user.active {
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
 }
 
-body.dark-mode .card {
-    background-color: #1e1e1e;
-    color: #ffffff;
+.chat-user img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
 }
 
-.chat-me {
-    background-color: var(--me-dark);
-    color: white;
+/* ===================== EMOJI PICKER ===================== */
+.emoji-picker {
+  position: absolute;
+  bottom: 75px;
+  right: 15px;
+  width: 320px;
+  max-height: 360px;
+
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+
+  display: flex;
+  flex-direction: column;
+
+  transform: translateY(15px) scale(0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(.4,0,.2,1);
+  z-index: 1000;
 }
 
-.chat-them {
-    background-color: var(--them-dark);
-    color: white;
+.emoji-picker.show {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
 }
 
-body.light-mode .chat-them {
-    background-color: var(--them-light);
-    color: #111;
+/* Header */
+.emoji-header {
+  padding: 8px;
+  border-bottom: 1px solid #222;
 }
-body.light-mode .chat-me {
-    background-color: var(--me-light);
-    color: #111;
+
+.emoji-header input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #1a1a1a;
+  border: none;
+  color: white;
+  outline: none;
 }
-.chat-card {
-    height: calc(100vh - 220px); /* navbar + input */
-    overflow-y: auto;
-    background-color: var(--chat-bg);
-    padding: 15px;
-    border-radius: 10px;
+
+/* Tabs */
+.emoji-tabs {
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 0;
+  border-bottom: 1px solid #222;
+}
+
+.emoji-tab {
+  cursor: pointer;
+  font-size: 18px;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.emoji-tab.active {
+  background: rgba(255,69,0,0.25);
+}
+
+/* Grid */
+.emoji-grid {
+  flex: 1;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  overflow-y: auto;
+}
+
+/* Emoji button */
+.emoji-btn {
+  font-size: 22px;
+  text-align: center;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.emoji-btn:hover {
+  transform: scale(1.25);
+  background: rgba(255,69,0,0.15);
+}
+
+/* Mobile swipe */
+@media (max-width: 600px) {
+  .emoji-picker {
+    right: 50%;
+    transform: translate(50%, 15px) scale(0.95);
+    width: 95%;
+  }
+}
+
+
+.theme-transition {
+  transition: 
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+/* =========================================================
+   NEXTURA MESSAGE NOTIFICATION
+========================================================= */
+
+#nextura-message-popup {
+    position: fixed;
+    top: 25px;
+    right: 25px;
+    width: 350px;
+    max-width: calc(100vw - 40px);
+
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    padding: 15px 17px;
+
+    background: rgba(20, 20, 25, 0.96);
+    color: #fff;
+
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+
+    box-shadow:
+        0 15px 40px rgba(0, 0, 0, 0.35);
+
+    backdrop-filter: blur(15px);
+
+    z-index: 99999;
+
+    opacity: 0;
+    transform: translateX(120%);
+
+    transition:
+        opacity 0.3s ease,
+        transform 0.3s ease;
+}
+
+#nextura-message-popup.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.nextura-popup-icon {
+    width: 44px;
+    height: 44px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: rgba(255, 193, 7, 0.15);
+
+    font-size: 22px;
+
+    flex-shrink: 0;
+}
+
+.nextura-popup-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.nextura-popup-content strong {
+    display: block;
+
+    font-size: 15px;
+
+    margin-bottom: 3px;
+}
+
+.nextura-popup-content div {
+    font-size: 14px;
+
+    opacity: 0.8;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nextura-popup-close {
+    border: none;
+    background: transparent;
+
+    color: #fff;
+
+    font-size: 24px;
+
+    cursor: pointer;
+
+    opacity: 0.6;
+}
+
+.nextura-popup-close:hover {
+    opacity: 1;
+}
+
+
+/* =========================================================
+   NOTIFICATION BADGE
+========================================================= */
+
+#notif-btn {
+    position: relative;
+}
+
+.notification-badge {
+    position: absolute;
+
+    top: -6px;
+    right: -6px;
+
+    min-width: 20px;
+    height: 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 2px 5px;
+
+    border-radius: 50%;
+
+    font-size: 11px;
+    line-height: 1;
+}
+
+
+/* =========================================================
+   BELL ANIMATION
+========================================================= */
+
+#notif-btn.has-notification {
+    animation: notificationBell 0.8s ease;
+}
+
+@keyframes notificationBell {
+
+    0% {
+        transform: rotate(0deg);
+    }
+
+    20% {
+        transform: rotate(-15deg);
+    }
+
+    40% {
+        transform: rotate(15deg);
+    }
+
+    60% {
+        transform: rotate(-10deg);
+    }
+
+    80% {
+        transform: rotate(10deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+
+/* =========================================================
+   NOTIFICATION LIST
+========================================================= */
+
+.notification-item {
+    padding: 12px;
+
+    border-bottom:
+        1px solid rgba(
+            255,
+            255,
+            255,
+            0.08
+        );
+
+    cursor: pointer;
+}
+
+.notification-item.unread {
+    background:
+        rgba(
+            255,
+            193,
+            7,
+            0.08
+        );
+}
+
+.notification-item strong {
+    font-size: 14px;
+}
+
+.notification-item span {
+    font-size: 13px;
+    opacity: 0.75;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    #nextura-message-popup {
+
+        top: 15px;
+        right: 15px;
+        left: 15px;
+
+        width: auto;
+        max-width: none;
+    }
 }

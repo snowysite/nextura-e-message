@@ -1,54 +1,1585 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Nextura-E-Message{% endblock %}</title>
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% block title %}
+            Nextura-E-Message
+        {% endblock %}
+    </title>
+
+
+    <!-- =====================================================
+         BOOTSTRAP
+    ====================================================== -->
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+
+    <!-- =====================================================
+         BOOTSTRAP ICONS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    >
+
+
+    <!-- =====================================================
+         MAIN CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+
+    <!-- =====================================================
+         GLOBAL NOTIFICATION CSS
+    ====================================================== -->
+
+    <style>
+
+        /* =================================================
+           THEME TRANSITION
+        ================================================= */
+
+        body {
+            transition:
+                background-color 0.25s ease,
+                color 0.25s ease;
+        }
+
+
+        /* =================================================
+           NOTIFICATION BUTTON
+        ================================================= */
+
+        #global-notification-btn {
+
+            position: relative;
+
+            width: 42px;
+            height: 38px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border:
+                1px solid
+                rgba(255,255,255,0.25);
+
+            border-radius: 8px;
+
+            background: transparent;
+
+            color: white;
+
+            cursor: pointer;
+
+            transition:
+                background 0.25s ease,
+                border-color 0.25s ease,
+                box-shadow 0.25s ease,
+                transform 0.2s ease;
+
+        }
+
+
+        #global-notification-btn:hover {
+
+            background: orangered;
+
+            border-color: orangered;
+
+            color: white;
+
+        }
+
+
+        #global-notification-btn.notification-open {
+
+            background: orangered !important;
+
+            border-color: orangered !important;
+
+            color: white !important;
+
+            box-shadow:
+                0 0 0 2px
+                rgba(255,69,0,0.15),
+                0 0 18px
+                rgba(255,69,0,0.45);
+
+        }
+
+
+        #global-notification-btn.notification-active {
+
+            animation:
+                nexturaBellShake
+                0.7s ease;
+
+        }
+
+
+        @keyframes nexturaBellShake {
+
+            0% {
+                transform: rotate(0deg);
+            }
+
+            20% {
+                transform: rotate(-18deg);
+            }
+
+            40% {
+                transform: rotate(18deg);
+            }
+
+            60% {
+                transform: rotate(-12deg);
+            }
+
+            80% {
+                transform: rotate(12deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+
+        }
+
+
+        /* =================================================
+           NOTIFICATION BADGE
+        ================================================= */
+
+        #global-notification-badge {
+
+            position: absolute;
+
+            top: -7px;
+            right: -7px;
+
+            min-width: 20px;
+            height: 20px;
+
+            padding: 2px 5px;
+
+            display: none;
+
+            align-items: center;
+            justify-content: center;
+
+            background: #dc3545;
+
+            color: white;
+
+            border-radius: 50%;
+
+            font-size: 11px;
+
+            font-weight: bold;
+
+            line-height: 1;
+
+            border:
+                2px solid #151515;
+
+            z-index: 5;
+
+        }
+
+
+        /* =================================================
+           NOTIFICATION PANEL
+        ================================================= */
+
+        #global-notification-panel {
+
+            position: fixed;
+
+            top: 72px;
+            right: 20px;
+
+            width: 350px;
+
+            max-width:
+                calc(100vw - 30px);
+
+            background: #1b1b1b;
+
+            color: white;
+
+            border:
+                1px solid
+                rgba(255,255,255,0.1);
+
+            border-radius: 14px;
+
+            box-shadow:
+                0 20px 50px
+                rgba(0,0,0,0.45);
+
+            overflow: hidden;
+
+            z-index: 99990;
+
+            display: none;
+
+        }
+
+
+        #global-notification-panel.show {
+
+            display: block;
+
+        }
+
+
+        /* =================================================
+           NOTIFICATION HEADER
+        ================================================= */
+
+        .notification-header {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 15px;
+
+            border-bottom:
+                1px solid
+                rgba(255,255,255,0.1);
+
+        }
+
+
+        .notification-header strong {
+
+            font-size: 16px;
+
+        }
+
+
+        #clear-notifications {
+
+            border: none;
+
+            background: transparent;
+
+            color: #ffc107;
+
+            font-size: 12px;
+
+            cursor: pointer;
+
+        }
+
+
+        #clear-notifications:hover {
+
+            color: white;
+
+        }
+
+
+        /* =================================================
+           NOTIFICATION LIST
+        ================================================= */
+
+        #global-notification-list {
+
+            list-style: none;
+
+            padding: 0;
+            margin: 0;
+
+            max-height: 380px;
+
+            overflow-y: auto;
+
+        }
+
+
+        #global-notification-list li {
+
+            padding: 14px 15px;
+
+            border-bottom:
+                1px solid
+                rgba(255,255,255,0.06);
+
+            cursor: pointer;
+
+            transition:
+                background 0.2s ease;
+
+        }
+
+
+        #global-notification-list li:hover {
+
+            background:
+                rgba(255,255,255,0.06);
+
+        }
+
+
+        .notification-empty {
+
+            text-align: center;
+
+            padding: 30px 15px !important;
+
+            color:
+                rgba(255,255,255,0.5);
+
+            cursor: default !important;
+
+        }
+
+
+        /* =================================================
+           POPUP
+        ================================================= */
+
+        #nextura-global-popup {
+
+            position: fixed;
+
+            top: 90px;
+            right: 25px;
+
+            width: 360px;
+
+            max-width:
+                calc(100vw - 40px);
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 13px;
+
+            padding: 15px;
+
+            background: #1c1c1c;
+
+            color: white;
+
+            border:
+                1px solid
+                rgba(255,255,255,0.12);
+
+            border-radius: 15px;
+
+            box-shadow:
+                0 15px 45px
+                rgba(0,0,0,0.45);
+
+            z-index: 99999;
+
+            opacity: 0;
+
+            transform:
+                translateX(120%);
+
+            transition:
+                transform 0.35s ease,
+                opacity 0.35s ease;
+
+        }
+
+
+        #nextura-global-popup.show {
+
+            opacity: 1;
+
+            transform:
+                translateX(0);
+
+        }
+
+
+        .nextura-popup-icon {
+
+            width: 45px;
+            height: 45px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            background:
+                rgba(255,69,0,0.15);
+
+            border-radius: 50%;
+
+            font-size: 21px;
+
+            flex-shrink: 0;
+
+        }
+
+
+        .nextura-popup-content {
+
+            flex: 1;
+
+            min-width: 0;
+
+        }
+
+
+        .nextura-popup-sender {
+
+            font-size: 14px;
+
+            font-weight: bold;
+
+            margin-bottom: 3px;
+
+        }
+
+
+        .nextura-popup-message {
+
+            font-size: 13px;
+
+            color:
+                rgba(255,255,255,0.7);
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+        }
+
+
+        .nextura-popup-close {
+
+            border: none;
+
+            background: transparent;
+
+            color: white;
+
+            font-size: 23px;
+
+            cursor: pointer;
+
+            opacity: 0.6;
+
+        }
+
+
+        .nextura-popup-close:hover {
+
+            opacity: 1;
+
+        }
+
+
+        /* =================================================
+           MOBILE
+        ================================================= */
+
+        @media (max-width: 600px) {
+
+            #global-notification-panel {
+
+                right: 10px;
+                left: 10px;
+
+                width: auto;
+
+            }
+
+
+            #nextura-global-popup {
+
+                left: 15px;
+                right: 15px;
+
+                width: auto;
+
+                max-width: none;
+
+            }
+
+        }
+
+    </style>
+
 </head>
-<body class="{% block body_class %}bg-light{% endblock %}">
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg py-3 px-3" style="background-color:#151515;">
-    <a class="navbar-brand text-white d-flex align-items-center" href="/dashboard">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" width="30" height="30" class="d-inline-block align-top me-2">
-        <span>Nextura</span>
+
+<body class="{% block body_class %}dark-mode{% endblock %}">
+
+
+<!-- =====================================================
+     NAVBAR
+===================================================== -->
+
+<nav
+    class="navbar navbar-expand-lg py-3 px-3"
+    style="background-color:#151515;"
+>
+
+    <a
+        class="navbar-brand text-white d-flex align-items-center"
+        href="/dashboard"
+    >
+
+        <img
+            src="{{ url_for(
+                'static',
+                filename='images/WhatsApp Image 2026-01-15 at 7.21.47 PM.jpeg'
+            ) }}"
+            width="30"
+            height="30"
+            class="me-2"
+            alt="Nextura"
+        >
+
+        <span>
+            Nextura
+        </span>
+
     </a>
 
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
-        <span class="navbar-toggler-icon" style="color:white;">☰</span>
+
+    <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#navbarContent"
+    >
+
+        <span
+            class="navbar-toggler-icon"
+            style="color:white;"
+        >
+            ☰
+        </span>
+
     </button>
 
-    <div class="collapse navbar-collapse" id="navbarContent">
-        <ul class="navbar-nav ms-auto align-items-center">
+
+    <div
+        class="collapse navbar-collapse"
+        id="navbarContent"
+    >
+
+        <ul
+            class="navbar-nav ms-auto align-items-center"
+        >
+
+            <!-- ONLINE -->
+
             <li class="nav-item me-3">
-                <span class="text-success" id="status-indicator">● Online</span>
+
+                <span
+                    class="text-success"
+                    id="status-indicator"
+                >
+                    ● Online
+                </span>
+
             </li>
+
+
+            <!-- NOTIFICATION -->
+
             <li class="nav-item me-3">
-                <button id="theme-toggle" class="btn btn-outline-warning btn-sm">Light/Dark</button>
+
+                <button
+                    id="global-notification-btn"
+                    title="Notifications"
+                    type="button"
+                    aria-expanded="false"
+                >
+
+                    <i
+                        class="bi bi-bell"
+                        style="font-size:18px;"
+                    ></i>
+
+                    <span
+                        id="global-notification-badge"
+                    >
+                        0
+                    </span>
+
+                </button>
+
             </li>
+
+
+            <!-- THEME -->
+
+            <li class="nav-item me-3">
+
+                <button
+                    id="theme-toggle"
+                    class="btn btn-outline-warning btn-sm"
+                    type="button"
+                    title="Switch to light mode"
+                >
+                    <i class="bi bi-moon-fill"></i>
+                </button>
+
+            </li>
+
+
+            <!-- LOGOUT -->
+
             <li class="nav-item">
-                <a href="/logout" class="btn btn-outline-danger btn-sm">Logout</a>
+
+                <a
+                    href="/logout"
+                    class="btn btn-outline-danger btn-sm"
+                >
+                    Logout
+                </a>
+
             </li>
+
         </ul>
+
     </div>
+
 </nav>
 
-<!-- Main Content -->
-<div class="container my-4">
-    {% block content %}{% endblock %}
+
+<!-- =====================================================
+     GLOBAL NOTIFICATION PANEL
+===================================================== -->
+
+<div
+    id="global-notification-panel"
+>
+
+    <div class="notification-header">
+
+        <strong>
+            🔔 Notifications
+        </strong>
+
+        <button
+            id="clear-notifications"
+            type="button"
+        >
+            Mark all read
+        </button>
+
+    </div>
+
+
+    <ul id="global-notification-list">
+
+        <li class="notification-empty">
+            No new notifications
+        </li>
+
+    </ul>
+
 </div>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<!-- SocketIO -->
-<script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
-<!-- Custom JS -->
-<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+
+<!-- =====================================================
+     PAGE CONTENT
+===================================================== -->
+
+<div class="container my-4">
+
+    {% block content %}{% endblock %}
+
+</div>
+
+
+<!-- =====================================================
+     GLOBAL MESSAGE POPUP
+===================================================== -->
+
+<div id="nextura-global-popup">
+
+    <div class="nextura-popup-icon">
+        🔔
+    </div>
+
+
+    <div class="nextura-popup-content">
+
+        <div
+            class="nextura-popup-sender"
+            id="popup-sender"
+        >
+            New message
+        </div>
+
+
+        <div
+            class="nextura-popup-message"
+            id="popup-message"
+        >
+            You received a new message.
+        </div>
+
+    </div>
+
+
+    <button
+        class="nextura-popup-close"
+        id="popup-close"
+        type="button"
+    >
+        ×
+    </button>
+
+</div>
+
+
+<!-- =====================================================
+     BOOTSTRAP JS
+===================================================== -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+<!-- =====================================================
+     SOCKET.IO
+===================================================== -->
+
+<script
+    src="https://cdn.socket.io/4.7.2/socket.io.min.js"
+></script>
+
+
+<!-- =====================================================
+     CREATE ONE GLOBAL SOCKET
+===================================================== -->
+
+<script>
+
+    /*
+     * IMPORTANT:
+     *
+     * This is created immediately.
+     * chat.js will reuse this same connection.
+     */
+
+    window.nexturaSocket =
+        io();
+
+</script>
+
+
+<!-- =====================================================
+     GLOBAL NEXTURA JAVASCRIPT
+===================================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+
+        /* =================================================
+           ELEMENTS
+        ================================================= */
+
+        const socket =
+            window.nexturaSocket;
+
+
+        const notificationBtn =
+            document.getElementById(
+                "global-notification-btn"
+            );
+
+
+        const notificationBadge =
+            document.getElementById(
+                "global-notification-badge"
+            );
+
+
+        const notificationPanel =
+            document.getElementById(
+                "global-notification-panel"
+            );
+
+
+        const notificationList =
+            document.getElementById(
+                "global-notification-list"
+            );
+
+
+        const clearNotifications =
+            document.getElementById(
+                "clear-notifications"
+            );
+
+
+        const popup =
+            document.getElementById(
+                "nextura-global-popup"
+            );
+
+
+        const popupSender =
+            document.getElementById(
+                "popup-sender"
+            );
+
+
+        const popupMessage =
+            document.getElementById(
+                "popup-message"
+            );
+
+
+        const popupClose =
+            document.getElementById(
+                "popup-close"
+            );
+
+
+        let unreadCount = 0;
+
+
+        /* =================================================
+           ESCAPE HTML
+        ================================================= */
+
+        function escapeHTML(value) {
+
+            const div =
+                document.createElement(
+                    "div"
+                );
+
+            div.textContent =
+                value ?? "";
+
+            return div.innerHTML;
+
+        }
+
+
+        /* =================================================
+           UPDATE BADGE
+        ================================================= */
+
+        function updateBadge() {
+
+            if (!notificationBadge)
+                return;
+
+
+            if (unreadCount > 0) {
+
+                notificationBadge.style.display =
+                    "flex";
+
+
+                notificationBadge.textContent =
+                    unreadCount > 99
+                        ? "99+"
+                        : unreadCount;
+
+
+                notificationBtn?.classList.add(
+                    "notification-active"
+                );
+
+            }
+
+            else {
+
+                notificationBadge.style.display =
+                    "none";
+
+
+                notificationBtn?.classList.remove(
+                    "notification-active"
+                );
+
+            }
+
+        }
+
+
+        /* =================================================
+           ADD NOTIFICATION
+        ================================================= */
+
+        function addNotification(data) {
+
+            if (!notificationList)
+                return;
+
+
+            const empty =
+                notificationList.querySelector(
+                    ".notification-empty"
+                );
+
+
+            empty?.remove();
+
+
+            const li =
+                document.createElement(
+                    "li"
+                );
+
+
+            li.innerHTML = `
+
+                <div
+                    style="
+                        font-weight:600;
+                        margin-bottom:4px;
+                    "
+                >
+                    🔔
+                    ${escapeHTML(
+                        data.sender_name ||
+                        "New message"
+                    )}
+                </div>
+
+                <div
+                    style="
+                        font-size:13px;
+                        opacity:.7;
+                    "
+                >
+                    ${escapeHTML(
+                        data.message ||
+                        "You received a new message."
+                    )}
+                </div>
+
+            `;
+
+
+            if (data.sender_id) {
+
+                li.addEventListener(
+                    "click",
+                    function () {
+
+                        closeNotifications();
+
+
+                        window.location.href =
+                            `/chat/${data.sender_id}`;
+
+                    }
+                );
+
+            }
+
+
+            notificationList.prepend(
+                li
+            );
+
+        }
+
+
+        /* =================================================
+           SHOW POPUP
+        ================================================= */
+
+        function showPopup(data) {
+
+            if (!popup)
+                return;
+
+
+            if (popupSender) {
+
+                popupSender.textContent =
+                    data.sender_name ||
+                    "New message";
+
+            }
+
+
+            if (popupMessage) {
+
+                popupMessage.textContent =
+                    data.message ||
+                    "You received a new message.";
+
+            }
+
+
+            popup.classList.add(
+                "show"
+            );
+
+
+            clearTimeout(
+                window.nexturaPopupTimer
+            );
+
+
+            window.nexturaPopupTimer =
+                setTimeout(
+                    function () {
+
+                        popup.classList.remove(
+                            "show"
+                        );
+
+                    },
+                    5000
+                );
+
+        }
+
+
+        /* =================================================
+           CLOSE POPUP
+        ================================================= */
+
+        popupClose?.addEventListener(
+            "click",
+            function () {
+
+                popup?.classList.remove(
+                    "show"
+                );
+
+            }
+        );
+
+
+        /* =================================================
+           NOTIFICATION SOUND
+        ================================================= */
+
+        function playNotificationSound() {
+
+            let audio =
+                document.getElementById(
+                    "nexturaNotificationSound"
+                );
+
+
+            if (!audio) {
+
+                audio =
+                    document.createElement(
+                        "audio"
+                    );
+
+
+                audio.id =
+                    "nexturaNotificationSound";
+
+
+                audio.src =
+                    "/static/sounds/ringtone.mp3";
+
+
+                audio.preload =
+                    "auto";
+
+
+                document.body.appendChild(
+                    audio
+                );
+
+            }
+
+
+            audio.currentTime =
+                0;
+
+
+            audio
+                .play()
+                .catch(
+                    function () {}
+                );
+
+        }
+
+
+        /* =================================================
+           OPEN NOTIFICATIONS
+        ================================================= */
+
+        function openNotifications() {
+
+            if (!notificationPanel)
+                return;
+
+
+            notificationPanel.classList.add(
+                "show"
+            );
+
+
+            notificationBtn?.classList.add(
+                "notification-open"
+            );
+
+
+            notificationBtn?.setAttribute(
+                "aria-expanded",
+                "true"
+            );
+
+
+            unreadCount = 0;
+
+
+            updateBadge();
+
+
+            fetch(
+                "/api/notifications/read",
+                {
+                    method: "POST"
+                }
+            )
+            .catch(
+                function (error) {
+
+                    console.error(
+                        "Could not mark notifications read:",
+                        error
+                    );
+
+                }
+            );
+
+        }
+
+
+        /* =================================================
+           CLOSE NOTIFICATIONS
+        ================================================= */
+
+        function closeNotifications() {
+
+            if (!notificationPanel)
+                return;
+
+
+            notificationPanel.classList.remove(
+                "show"
+            );
+
+
+            notificationBtn?.classList.remove(
+                "notification-open"
+            );
+
+
+            notificationBtn?.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+        }
+
+
+        /* =================================================
+           TOGGLE NOTIFICATIONS
+        ================================================= */
+
+        notificationBtn?.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+                event.stopPropagation();
+
+
+                if (
+                    notificationPanel?.classList.contains(
+                        "show"
+                    )
+                ) {
+
+                    closeNotifications();
+
+                }
+
+                else {
+
+                    openNotifications();
+
+                }
+
+            }
+        );
+
+
+        /* =================================================
+           PREVENT PANEL FROM CLOSING
+        ================================================= */
+
+        notificationPanel?.addEventListener(
+            "click",
+            function (event) {
+
+                event.stopPropagation();
+
+            }
+        );
+
+
+        /* =================================================
+           CLICK OUTSIDE
+        ================================================= */
+
+        document.addEventListener(
+            "click",
+            function (event) {
+
+                if (
+                    notificationPanel &&
+                    notificationBtn &&
+                    notificationPanel.classList.contains(
+                        "show"
+                    ) &&
+                    !notificationPanel.contains(
+                        event.target
+                    ) &&
+                    !notificationBtn.contains(
+                        event.target
+                    )
+                ) {
+
+                    closeNotifications();
+
+                }
+
+            }
+        );
+
+
+        /* =================================================
+           NEW NOTIFICATION
+        ================================================= */
+
+        socket.on(
+            "new_notification",
+            function (data) {
+
+                console.log(
+                    "🔔 New notification:",
+                    data
+                );
+
+
+                unreadCount++;
+
+
+                updateBadge();
+
+
+                addNotification(
+                    data
+                );
+
+
+                showPopup(
+                    data
+                );
+
+
+                playNotificationSound();
+
+            }
+        );
+
+
+        /* =================================================
+           MARK ALL READ
+        ================================================= */
+
+        clearNotifications?.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+                event.stopPropagation();
+
+
+                fetch(
+                    "/api/notifications/read",
+                    {
+                        method: "POST"
+                    }
+                )
+                .then(
+                    function () {
+
+                        unreadCount = 0;
+
+                        updateBadge();
+
+                    }
+                )
+                .catch(
+                    function (error) {
+
+                        console.error(
+                            "Could not mark notifications read:",
+                            error
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+
+        /* =================================================
+           LOAD EXISTING NOTIFICATIONS
+        ================================================= */
+
+        fetch(
+            "/api/notifications"
+        )
+        .then(
+            function (response) {
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Notification request failed"
+                    );
+
+                }
+
+                return response.json();
+
+            }
+        )
+        .then(
+            function (data) {
+
+                unreadCount =
+                    data.unread_count || 0;
+
+
+                updateBadge();
+
+
+                if (
+                    data.notifications &&
+                    data.notifications.length
+                ) {
+
+                    notificationList.innerHTML =
+                        "";
+
+
+                    data.notifications.forEach(
+                        function (notification) {
+
+                            addNotification(
+                                notification
+                            );
+
+                        }
+                    );
+
+                }
+
+            }
+        )
+        .catch(
+            function (error) {
+
+                console.error(
+                    "Notification loading error:",
+                    error
+                );
+
+            }
+        );
+
+
+        /* =================================================
+           ONLINE STATUS
+        ================================================= */
+
+        socket.on(
+            "status_update",
+            function () {
+
+                const status =
+                    document.getElementById(
+                        "status-indicator"
+                    );
+
+
+                if (!status)
+                    return;
+
+
+                status.innerHTML =
+                    "● Online";
+
+            }
+        );
+
+
+        /* =================================================
+           THEME
+        ================================================= */
+
+        const themeToggle =
+            document.getElementById(
+                "theme-toggle"
+            );
+
+
+        function applyTheme(theme) {
+
+            document.body.classList.remove(
+                "dark-mode",
+                "light-mode"
+            );
+
+
+            document.body.classList.add(
+                theme + "-mode"
+            );
+
+
+            if (
+                theme === "light"
+            ) {
+
+                themeToggle.innerHTML =
+                    '<i class="bi bi-sun-fill"></i>';
+
+
+                themeToggle.title =
+                    "Switch to dark mode";
+
+            }
+
+            else {
+
+                themeToggle.innerHTML =
+                    '<i class="bi bi-moon-fill"></i>';
+
+
+                themeToggle.title =
+                    "Switch to light mode";
+
+            }
+
+        }
+
+
+        if (themeToggle) {
+
+            const savedTheme =
+                localStorage.getItem(
+                    "nextura-theme"
+                ) || "dark";
+
+
+            applyTheme(
+                savedTheme
+            );
+
+
+            themeToggle.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+
+                    const currentTheme =
+                        document.body.classList.contains(
+                            "light-mode"
+                        )
+                            ? "light"
+                            : "dark";
+
+
+                    const newTheme =
+                        currentTheme === "light"
+                            ? "dark"
+                            : "light";
+
+
+                    localStorage.setItem(
+                        "nextura-theme",
+                        newTheme
+                    );
+
+
+                    applyTheme(
+                        newTheme
+                    );
+
+                }
+            );
+
+        }
+
+    }
+);
+
+</script>
+
+
+<!-- =====================================================
+     DO NOT LOAD ANOTHER THEME SYSTEM HERE
+===================================================== -->
+
 {% block scripts %}{% endblock %}
+
+
 </body>
 </html>

@@ -6,4 +6,5 @@ instance/
 *.sqlite3
 document
 document.pub
-
+static/uploads/
+database.db
