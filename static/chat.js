@@ -1,4 +1,4 @@
-javascript
+
 console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 (() => {

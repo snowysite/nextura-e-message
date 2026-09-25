@@ -1197,20 +1197,291 @@ def on_join(data):
 def send_message(data):
 
     if not current_user.is_authenticated:
-
+        print("❌ Unauthenticated socket tried to send a message.")
         return
 
-
-    # -----------------------------------------
-    # Sender
-    # -----------------------------------------
+    # =====================================================
+    # SENDER
+    # =====================================================
 
     sender_id = current_user.id
 
+    # =====================================================
+    # RECEIVER
+    # =====================================================
 
-    # -----------------------------------------
-    # Receiver
-    # -----------------------------------------
+    try:
+        receiver_id = int(
+            data.get("receiver_id")
+        )
+
+    except (TypeError, ValueError):
+
+        print("❌ Invalid receiver ID:", data.get("receiver_id"))
+        return
+
+    # =====================================================
+    # MESSAGE
+    # =====================================================
+
+    message = str(
+        data.get(
+            "message",
+            ""
+        )
+    ).strip()
+
+    if not message:
+        return
+
+    # =====================================================
+    # PREVENT SELF MESSAGE
+    # =====================================================
+
+    if sender_id == receiver_id:
+
+        print("❌ User cannot message themselves.")
+        return
+
+    # =====================================================
+    # REPLY ID
+    # =====================================================
+
+    reply_to_id = data.get(
+        "reply_to_id"
+    )
+
+    db = get_db()
+
+    try:
+
+        # =================================================
+        # VERIFY RECEIVER
+        # =================================================
+
+        receiver = db.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = ?
+            """,
+            (
+                receiver_id,
+            )
+        ).fetchone()
+
+        if not receiver:
+
+            print(
+                "❌ Receiver does not exist:",
+                receiver_id
+            )
+
+            return
+
+        # =================================================
+        # VALIDATE REPLY
+        # =================================================
+
+        (
+            reply_to_id,
+            reply_preview,
+            reply_sender_name
+        ) = get_reply_info(
+            db,
+            reply_to_id,
+            sender_id,
+            receiver_id
+        )
+
+        # =================================================
+        # SAVE MESSAGE
+        # =================================================
+
+        cursor = db.execute(
+            """
+            INSERT INTO messages
+            (
+                sender_id,
+                receiver_id,
+                message,
+                message_type,
+                status,
+                reply_to_id
+            )
+            VALUES
+            (
+                ?,
+                ?,
+                ?,
+                'text',
+                'sent',
+                ?
+            )
+            """,
+            (
+                sender_id,
+                receiver_id,
+                message,
+                reply_to_id
+            )
+        )
+
+        message_id = cursor.lastrowid
+
+        db.commit()
+
+        print(
+            "✅ Message saved:",
+            message_id,
+            "from",
+            sender_id,
+            "to",
+            receiver_id
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "❌ SEND MESSAGE DATABASE ERROR:",
+            e
+        )
+
+        return
+
+    finally:
+
+        db.close()
+
+    # =====================================================
+    # GET SENDER NAME
+    # =====================================================
+
+    db = get_db()
+
+    sender = db.execute(
+        """
+        SELECT username
+        FROM users
+        WHERE id = ?
+        """,
+        (
+            sender_id,
+        )
+    ).fetchone()
+
+    db.close()
+
+    sender_name = (
+        sender["username"]
+        if sender
+        else "User"
+    )
+
+    # =====================================================
+    # MESSAGE DATA
+    # =====================================================
+
+    message_data = {
+
+        "id":
+            message_id,
+
+        "sender_id":
+            sender_id,
+
+        "receiver_id":
+            receiver_id,
+
+        "sender_name":
+            sender_name,
+
+        "message":
+            message,
+
+        "message_type":
+            "text",
+
+        "status":
+            "sent",
+
+        "reply_to_id":
+            reply_to_id,
+
+        "reply_preview":
+            reply_preview,
+
+        "reply_sender_name":
+            reply_sender_name
+    }
+
+    # =====================================================
+    # SEND TO SENDER
+    # =====================================================
+
+    socketio.emit(
+        "receive_message",
+        message_data,
+        room=f"user_{sender_id}"
+    )
+
+    print(
+        "📤 Message sent to sender room:",
+        f"user_{sender_id}"
+    )
+
+    # =====================================================
+    # SEND TO RECEIVER
+    # =====================================================
+
+    socketio.emit(
+        "receive_message",
+        message_data,
+        room=f"user_{receiver_id}"
+    )
+
+    print(
+        "📤 Message sent to receiver room:",
+        f"user_{receiver_id}"
+    )
+
+    # =====================================================
+    # CREATE NOTIFICATION
+    # =====================================================
+
+    create_notification(
+        receiver_id,
+        sender_id,
+        message
+    )
+
+    print(
+        "🔔 Notification created for:",
+        receiver_id
+    )
+
+# =========================================================
+# SEND VOICE MESSAGE
+# =========================================================
+
+@socketio.on("send_voice")
+def send_voice(data):
+
+    if not current_user.is_authenticated:
+
+        print(
+            "❌ Unauthenticated socket tried to send voice."
+        )
+
+        return
+
+    sender_id = current_user.id
+
+    # =====================================================
+    # RECEIVER
+    # =====================================================
 
     try:
 
@@ -1220,50 +1491,50 @@ def send_message(data):
 
     except (TypeError, ValueError):
 
-        return
-
-
-    # -----------------------------------------
-    # Message
-    # -----------------------------------------
-
-    message = str(
-        data.get(
-            "message",
-            ""
+        print(
+            "❌ Invalid voice receiver:",
+            data.get("receiver_id")
         )
-    ).strip()
-
-
-    if not message:
 
         return
 
-
-    # -----------------------------------------
-    # Prevent messaging yourself
-    # -----------------------------------------
+    # =====================================================
+    # PREVENT SELF MESSAGE
+    # =====================================================
 
     if sender_id == receiver_id:
 
         return
 
+    # =====================================================
+    # AUDIO
+    # =====================================================
 
-    # -----------------------------------------
-    # Reply message ID
-    # -----------------------------------------
+    audio_data = data.get(
+        "audio"
+    )
+
+    if not audio_data:
+
+        print(
+            "❌ No audio data received."
+        )
+
+        return
+
+    # =====================================================
+    # REPLY
+    # =====================================================
 
     reply_to_id = data.get(
         "reply_to_id"
     )
 
+    # =====================================================
+    # DATABASE
+    # =====================================================
 
     db = get_db()
-
-
-    # -----------------------------------------
-    # Verify receiver exists
-    # -----------------------------------------
 
     receiver = db.execute(
         """
@@ -1276,208 +1547,16 @@ def send_message(data):
         )
     ).fetchone()
 
-
     if not receiver:
 
         db.close()
 
-        return
-
-
-    # -----------------------------------------
-    # Validate reply target
-    # -----------------------------------------
-
-    (
-        reply_to_id,
-        reply_preview,
-        reply_sender_name
-    ) = get_reply_info(
-        db,
-        reply_to_id,
-        sender_id,
-        receiver_id
-    )
-
-
-    # -----------------------------------------
-    # Save message
-    # -----------------------------------------
-
-    cursor = db.execute("""
-        INSERT INTO messages
-
-        (
-            sender_id,
-
-            receiver_id,
-
-            message,
-
-            message_type,
-
-            status,
-
-            reply_to_id
-        )
-
-        VALUES
-        (
-            ?,
-            ?,
-            ?,
-            'text',
-            'sent',
-            ?
-        )
-
-    """, (
-        sender_id,
-
-        receiver_id,
-
-        message,
-
-        reply_to_id
-    ))
-
-
-    message_id = cursor.lastrowid
-
-
-    db.commit()
-
-    db.close()
-
-
-    # -----------------------------------------
-    # Send message to chat
-    # -----------------------------------------
-
-    socketio.emit(
-        "receive_message",
-        {
-            "id": message_id,
-
-            "sender_id": sender_id,
-
-            "receiver_id": receiver_id,
-
-            "message": message,
-
-            "message_type": "text",
-
-            "status": "sent",
-
-            "reply_to_id": reply_to_id,
-
-            "reply_preview": reply_preview,
-
-            "reply_sender_name": reply_sender_name
-        },
-
-        room=get_room_id(
-            sender_id,
+        print(
+            "❌ Voice receiver does not exist:",
             receiver_id
         )
-    )
-
-
-    # -----------------------------------------
-    # Create notification
-    # -----------------------------------------
-
-    create_notification(
-        receiver_id,
-        sender_id,
-        message
-    )
-
-
-# =========================================================
-# SEND VOICE MESSAGE
-# =========================================================
-
-@socketio.on("send_voice")
-def send_voice(data):
-
-    if not current_user.is_authenticated:
 
         return
-
-
-    sender_id = current_user.id
-
-
-    # -----------------------------------------
-    # Receiver
-    # -----------------------------------------
-
-    try:
-
-        receiver_id = int(
-            data.get("receiver_id")
-        )
-
-    except (TypeError, ValueError):
-
-        return
-
-
-    # -----------------------------------------
-    # Prevent sending to yourself
-    # -----------------------------------------
-
-    if sender_id == receiver_id:
-
-        return
-
-
-    # -----------------------------------------
-    # Audio data
-    # -----------------------------------------
-
-    audio_data = data.get(
-        "audio"
-    )
-
-
-    if not audio_data:
-
-        return
-
-
-    # -----------------------------------------
-    # Reply message ID
-    # -----------------------------------------
-
-    reply_to_id = data.get(
-        "reply_to_id"
-    )
-
-
-    # -----------------------------------------
-    # Verify receiver and reply
-    # -----------------------------------------
-
-    db = get_db()
-
-
-    receiver = db.execute("""
-        SELECT id
-        FROM users
-        WHERE id = ?
-    """, (
-        receiver_id,
-    )).fetchone()
-
-
-    if not receiver:
-
-        db.close()
-
-        return
-
 
     (
         reply_to_id,
@@ -1490,13 +1569,11 @@ def send_voice(data):
         receiver_id
     )
 
-
     db.close()
 
-
-    # -----------------------------------------
-    # Decode audio data
-    # -----------------------------------------
+    # =====================================================
+    # DECODE AUDIO
+    # =====================================================
 
     try:
 
@@ -1511,7 +1588,6 @@ def send_voice(data):
 
             audio_base64 = audio_data
 
-
         audio_bytes = base64.b64decode(
             audio_base64
         )
@@ -1519,16 +1595,15 @@ def send_voice(data):
     except Exception as e:
 
         print(
-            "Voice decode error:",
+            "❌ Voice decode error:",
             e
         )
 
         return
 
-
-    # -----------------------------------------
-    # Filename
-    # -----------------------------------------
+    # =====================================================
+    # FILE NAME
+    # =====================================================
 
     filename = (
         f"{sender_id}_"
@@ -1536,16 +1611,14 @@ def send_voice(data):
         f"{os.urandom(4).hex()}.webm"
     )
 
-
     path = os.path.join(
         VOICE_FOLDER,
         filename
     )
 
-
-    # -----------------------------------------
-    # Save voice file
-    # -----------------------------------------
+    # =====================================================
+    # SAVE AUDIO
+    # =====================================================
 
     try:
 
@@ -1561,122 +1634,178 @@ def send_voice(data):
     except Exception as e:
 
         print(
-            "Voice save error:",
+            "❌ Voice save error:",
             e
         )
 
         return
 
-
-    # -----------------------------------------
-    # Save voice message
-    # -----------------------------------------
+    # =====================================================
+    # SAVE MESSAGE
+    # =====================================================
 
     db = get_db()
 
+    try:
 
-    cursor = db.execute("""
-        INSERT INTO messages
-
-        (
-            sender_id,
-
-            receiver_id,
-
-            message,
-
-            message_type,
-
-            status,
-
-            reply_to_id
+        cursor = db.execute(
+            """
+            INSERT INTO messages
+            (
+                sender_id,
+                receiver_id,
+                message,
+                message_type,
+                status,
+                reply_to_id
+            )
+            VALUES
+            (
+                ?,
+                ?,
+                ?,
+                'voice',
+                'sent',
+                ?
+            )
+            """,
+            (
+                sender_id,
+                receiver_id,
+                filename,
+                reply_to_id
+            )
         )
 
-        VALUES
-        (
-            ?,
-            ?,
-            ?,
-            'voice',
-            'sent',
-            ?
+        message_id = cursor.lastrowid
+
+        db.commit()
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "❌ Voice database error:",
+            e
         )
 
-    """, (
-        sender_id,
+        db.close()
 
-        receiver_id,
-
-        filename,
-
-        reply_to_id
-    ))
-
-
-    message_id = cursor.lastrowid
-
-
-    db.commit()
+        return
 
     db.close()
 
-
-    # -----------------------------------------
-    # Voice URL
-    # -----------------------------------------
+    # =====================================================
+    # AUDIO URL
+    # =====================================================
 
     audio_url = url_for(
         "static",
-        filename=
-            f"uploads/voices/{filename}"
+        filename=f"uploads/voices/{filename}"
     )
 
+    # =====================================================
+    # SENDER NAME
+    # =====================================================
 
-    # -----------------------------------------
-    # Send voice message
-    # -----------------------------------------
+    db = get_db()
+
+    sender = db.execute(
+        """
+        SELECT username
+        FROM users
+        WHERE id = ?
+        """,
+        (
+            sender_id,
+        )
+    ).fetchone()
+
+    db.close()
+
+    sender_name = (
+        sender["username"]
+        if sender
+        else "User"
+    )
+
+    # =====================================================
+    # MESSAGE DATA
+    # =====================================================
+
+    message_data = {
+
+        "id":
+            message_id,
+
+        "sender_id":
+            sender_id,
+
+        "receiver_id":
+            receiver_id,
+
+        "sender_name":
+            sender_name,
+
+        "message":
+            filename,
+
+        "audio":
+            audio_url,
+
+        "message_type":
+            "voice",
+
+        "status":
+            "sent",
+
+        "reply_to_id":
+            reply_to_id,
+
+        "reply_preview":
+            reply_preview,
+
+        "reply_sender_name":
+            reply_sender_name
+    }
+
+    # =====================================================
+    # SEND TO SENDER
+    # =====================================================
 
     socketio.emit(
         "receive_message",
-        {
-            "id": message_id,
-
-            "sender_id": sender_id,
-
-            "receiver_id": receiver_id,
-
-            "message": filename,
-
-            "audio": audio_url,
-
-            "message_type": "voice",
-
-            "status": "sent",
-
-            "reply_to_id": reply_to_id,
-
-            "reply_preview": reply_preview,
-
-            "reply_sender_name": reply_sender_name
-        },
-
-        room=get_room_id(
-            sender_id,
-            receiver_id
-        )
+        message_data,
+        room=f"user_{sender_id}"
     )
 
+    # =====================================================
+    # SEND TO RECEIVER
+    # =====================================================
 
-    # -----------------------------------------
-    # Create notification
-    # -----------------------------------------
+    socketio.emit(
+        "receive_message",
+        message_data,
+        room=f"user_{receiver_id}"
+    )
+
+    print(
+        "🎙 Voice message delivered:",
+        sender_id,
+        "→",
+        receiver_id
+    )
+
+    # =====================================================
+    # NOTIFICATION
+    # =====================================================
 
     create_notification(
         receiver_id,
         sender_id,
         "🎙 Voice message"
     )
-
 
 # =========================================================
 # AUDIO CALL
