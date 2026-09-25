@@ -175,6 +175,31 @@ def init_db():
     """)
 
 
+    # =====================================================
+    # MESSAGE REPLY MIGRATION
+    # =====================================================
+
+    message_columns = db.execute(
+        "PRAGMA table_info(messages)"
+    ).fetchall()
+
+    message_column_names = [
+        column["name"]
+        for column in message_columns
+    ]
+
+    if "reply_to_id" not in message_column_names:
+
+        db.execute("""
+            ALTER TABLE messages
+            ADD COLUMN reply_to_id INTEGER
+        """)
+
+        print(
+            "✅ Added reply_to_id column to messages table."
+        )
+
+
     db.commit()
 
     db.close()
@@ -196,6 +221,153 @@ def get_room_id(u1, u2):
     return (
         f"chat_{min(u1, u2)}_"
         f"{max(u1, u2)}"
+    )
+
+
+# =========================================================
+# GET REPLY INFORMATION
+# =========================================================
+
+def get_reply_info(
+    db,
+    reply_to_id,
+    sender_id,
+    receiver_id
+):
+
+    """
+    Validates that the reply target belongs to the
+    current conversation.
+
+    Returns:
+
+        reply_to_id
+        reply_preview
+        reply_sender_name
+    """
+
+    if reply_to_id in (
+        None,
+        "",
+        "null",
+        "undefined"
+    ):
+
+        return (
+            None,
+            None,
+            None
+        )
+
+
+    try:
+
+        reply_to_id = int(
+            reply_to_id
+        )
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
+        return (
+            None,
+            None,
+            None
+        )
+
+
+    reply_message = db.execute("""
+        SELECT
+
+            messages.id,
+
+            messages.sender_id,
+
+            messages.receiver_id,
+
+            messages.message,
+
+            messages.message_type,
+
+            users.username AS sender_name
+
+        FROM messages
+
+        LEFT JOIN users
+            ON users.id = messages.sender_id
+
+        WHERE messages.id = ?
+
+        AND (
+
+            (
+                messages.sender_id = ?
+                AND
+                messages.receiver_id = ?
+            )
+
+            OR
+
+            (
+                messages.sender_id = ?
+                AND
+                messages.receiver_id = ?
+            )
+
+        )
+
+    """, (
+        reply_to_id,
+
+        sender_id,
+        receiver_id,
+
+        receiver_id,
+        sender_id
+    )).fetchone()
+
+
+    if not reply_message:
+
+        return (
+            None,
+            None,
+            None
+        )
+
+
+    # -----------------------------------------
+    # Create preview
+    # -----------------------------------------
+
+    if reply_message["message_type"] == "voice":
+
+        reply_preview = "🎙 Voice message"
+
+    else:
+
+        reply_preview = (
+            reply_message["message"]
+            or ""
+        )
+
+
+    # -----------------------------------------
+    # Sender name
+    # -----------------------------------------
+
+    reply_sender_name = (
+        reply_message["sender_name"]
+        or "User"
+    )
+
+
+    return (
+        reply_message["id"],
+        reply_preview,
+        reply_sender_name
     )
 
 
@@ -1030,7 +1202,7 @@ def send_message(data):
 
 
     # -----------------------------------------
-    # Sender comes from logged-in account
+    # Sender
     # -----------------------------------------
 
     sender_id = current_user.id
@@ -1077,6 +1249,15 @@ def send_message(data):
         return
 
 
+    # -----------------------------------------
+    # Reply message ID
+    # -----------------------------------------
+
+    reply_to_id = data.get(
+        "reply_to_id"
+    )
+
+
     db = get_db()
 
 
@@ -1104,6 +1285,22 @@ def send_message(data):
 
 
     # -----------------------------------------
+    # Validate reply target
+    # -----------------------------------------
+
+    (
+        reply_to_id,
+        reply_preview,
+        reply_sender_name
+    ) = get_reply_info(
+        db,
+        reply_to_id,
+        sender_id,
+        receiver_id
+    )
+
+
+    # -----------------------------------------
     # Save message
     # -----------------------------------------
 
@@ -1119,7 +1316,9 @@ def send_message(data):
 
             message_type,
 
-            status
+            status,
+
+            reply_to_id
         )
 
         VALUES
@@ -1128,7 +1327,8 @@ def send_message(data):
             ?,
             ?,
             'text',
-            'sent'
+            'sent',
+            ?
         )
 
     """, (
@@ -1136,7 +1336,9 @@ def send_message(data):
 
         receiver_id,
 
-        message
+        message,
+
+        reply_to_id
     ))
 
 
@@ -1153,24 +1355,25 @@ def send_message(data):
     # -----------------------------------------
 
     socketio.emit(
-
         "receive_message",
-
         {
-            "id":
-                message_id,
+            "id": message_id,
 
-            "sender_id":
-                sender_id,
+            "sender_id": sender_id,
 
-            "receiver_id":
-                receiver_id,
+            "receiver_id": receiver_id,
 
-            "message":
-                message,
+            "message": message,
 
-            "message_type":
-                "text"
+            "message_type": "text",
+
+            "status": "sent",
+
+            "reply_to_id": reply_to_id,
+
+            "reply_preview": reply_preview,
+
+            "reply_sender_name": reply_sender_name
         },
 
         room=get_room_id(
@@ -1185,11 +1388,8 @@ def send_message(data):
     # -----------------------------------------
 
     create_notification(
-
         receiver_id,
-
         sender_id,
-
         message
     )
 
@@ -1225,6 +1425,15 @@ def send_voice(data):
 
 
     # -----------------------------------------
+    # Prevent sending to yourself
+    # -----------------------------------------
+
+    if sender_id == receiver_id:
+
+        return
+
+
+    # -----------------------------------------
     # Audio data
     # -----------------------------------------
 
@@ -1238,12 +1447,69 @@ def send_voice(data):
         return
 
 
+    # -----------------------------------------
+    # Reply message ID
+    # -----------------------------------------
+
+    reply_to_id = data.get(
+        "reply_to_id"
+    )
+
+
+    # -----------------------------------------
+    # Verify receiver and reply
+    # -----------------------------------------
+
+    db = get_db()
+
+
+    receiver = db.execute("""
+        SELECT id
+        FROM users
+        WHERE id = ?
+    """, (
+        receiver_id,
+    )).fetchone()
+
+
+    if not receiver:
+
+        db.close()
+
+        return
+
+
+    (
+        reply_to_id,
+        reply_preview,
+        reply_sender_name
+    ) = get_reply_info(
+        db,
+        reply_to_id,
+        sender_id,
+        receiver_id
+    )
+
+
+    db.close()
+
+
+    # -----------------------------------------
+    # Decode audio data
+    # -----------------------------------------
+
     try:
 
-        audio_base64 = audio_data.split(
-            ",",
-            1
-        )[1]
+        if "," in audio_data:
+
+            audio_base64 = audio_data.split(
+                ",",
+                1
+            )[1]
+
+        else:
+
+            audio_base64 = audio_data
 
 
         audio_bytes = base64.b64decode(
@@ -1303,7 +1569,7 @@ def send_voice(data):
 
 
     # -----------------------------------------
-    # Save message
+    # Save voice message
     # -----------------------------------------
 
     db = get_db()
@@ -1321,7 +1587,9 @@ def send_voice(data):
 
             message_type,
 
-            status
+            status,
+
+            reply_to_id
         )
 
         VALUES
@@ -1330,7 +1598,8 @@ def send_voice(data):
             ?,
             ?,
             'voice',
-            'sent'
+            'sent',
+            ?
         )
 
     """, (
@@ -1338,7 +1607,9 @@ def send_voice(data):
 
         receiver_id,
 
-        filename
+        filename,
+
+        reply_to_id
     ))
 
 
@@ -1356,7 +1627,6 @@ def send_voice(data):
 
     audio_url = url_for(
         "static",
-
         filename=
             f"uploads/voices/{filename}"
     )
@@ -1367,27 +1637,27 @@ def send_voice(data):
     # -----------------------------------------
 
     socketio.emit(
-
         "receive_message",
-
         {
-            "id":
-                message_id,
+            "id": message_id,
 
-            "sender_id":
-                sender_id,
+            "sender_id": sender_id,
 
-            "receiver_id":
-                receiver_id,
+            "receiver_id": receiver_id,
 
-            "message":
-                filename,
+            "message": filename,
 
-            "audio":
-                audio_url,
+            "audio": audio_url,
 
-            "message_type":
-                "voice"
+            "message_type": "voice",
+
+            "status": "sent",
+
+            "reply_to_id": reply_to_id,
+
+            "reply_preview": reply_preview,
+
+            "reply_sender_name": reply_sender_name
         },
 
         room=get_room_id(
@@ -1402,11 +1672,8 @@ def send_voice(data):
     # -----------------------------------------
 
     create_notification(
-
         receiver_id,
-
         sender_id,
-
         "🎙 Voice message"
     )
 
@@ -1563,10 +1830,16 @@ def end_call(data):
 # =========================================================
 # RUN SERVER
 # =========================================================
-if __name__ == "__main__":
-    import os
 
-    port = int(os.environ.get("PORT", 5000))
+if __name__ == "__main__":
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
 
     socketio.run(
         app,

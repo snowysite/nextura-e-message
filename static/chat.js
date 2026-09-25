@@ -1,3 +1,4 @@
+javascript
 console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 (() => {
@@ -86,6 +87,36 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         document.getElementById("ringback");
 
 
+    // =========================================================
+    // REPLY ELEMENTS
+    // =========================================================
+
+    const replyComposer =
+        document.getElementById("reply-composer");
+
+    const replyComposerLabel =
+        document.getElementById("reply-composer-label");
+
+    const replyComposerText =
+        document.getElementById("reply-composer-text");
+
+    const cancelReplyBtn =
+        document.getElementById("cancel-reply");
+
+
+    // =========================================================
+    // REPLY STATE
+    // =========================================================
+
+    let replyToId = null;
+
+    let replyToType = null;
+
+    let replyToText = "";
+
+    let replyToSenderName = "";
+
+
     console.log("💬 Chat form:", chatForm);
     console.log("⌨️ Chat input:", chatInput);
     console.log("📦 Chat box:", chatBox);
@@ -145,6 +176,324 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
     // =========================================================
+    // REPLY HELPERS
+    // =========================================================
+
+    function getReplyPreviewText(data) {
+
+        if (
+            data.message_type === "voice" ||
+            data.audio
+        ) {
+            return "🎙 Voice message";
+        }
+
+        return data.message || "";
+    }
+
+
+    function clearReply() {
+
+        replyToId = null;
+        replyToType = null;
+        replyToText = "";
+        replyToSenderName = "";
+
+        if (replyComposer) {
+
+            replyComposer.classList.remove(
+                "active"
+            );
+
+            replyComposer.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+        }
+
+        if (replyComposerLabel) {
+
+            replyComposerLabel.textContent =
+                "Replying to";
+        }
+
+        if (replyComposerText) {
+
+            replyComposerText.textContent =
+                "";
+        }
+    }
+
+
+    function startReply(messageElement) {
+
+        if (!messageElement) {
+            return;
+        }
+
+        const messageId =
+            Number(
+                messageElement.dataset.messageId
+            );
+
+        if (!messageId) {
+            return;
+        }
+
+        const messageType =
+            messageElement.dataset.messageType ||
+            "text";
+
+        let previewText =
+            messageElement.dataset.messagePreview ||
+            "";
+
+        const senderName =
+            messageElement.dataset.senderName ||
+            "";
+
+
+        if (
+            !previewText &&
+            messageType === "voice"
+        ) {
+            previewText =
+                "🎙 Voice message";
+        }
+
+
+        replyToId = messageId;
+
+        replyToType = messageType;
+
+        replyToText = previewText;
+
+        replyToSenderName = senderName;
+
+
+        if (replyComposer) {
+
+            replyComposer.classList.add(
+                "active"
+            );
+
+            replyComposer.classList.remove(
+                "d-none"
+            );
+
+            replyComposer.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+        }
+
+
+        if (replyComposerLabel) {
+
+            replyComposerLabel.textContent =
+                senderName
+                    ? `Replying to ${senderName}`
+                    : "Replying to";
+        }
+
+
+        if (replyComposerText) {
+
+            replyComposerText.textContent =
+                previewText;
+        }
+
+
+        if (chatInput) {
+
+            chatInput.focus();
+        }
+
+
+        console.log(
+            "↩️ Replying to message:",
+            messageId
+        );
+    }
+
+
+    function scrollToMessage(messageId) {
+
+        if (!chatBox || !messageId) {
+            return;
+        }
+
+        const target =
+            chatBox.querySelector(
+                `[data-message-id="${messageId}"]`
+            );
+
+        if (!target) {
+            return;
+        }
+
+
+        target.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+
+
+        target.classList.add(
+            "reply-highlight"
+        );
+
+
+        setTimeout(
+            function () {
+
+                target.classList.remove(
+                    "reply-highlight"
+                );
+
+            },
+            1500
+        );
+    }
+
+
+    // =========================================================
+    // ADD REPLY PREVIEW
+    // =========================================================
+
+    function createReplyPreview(data, isMine) {
+
+        if (!data.reply_to_id) {
+            return null;
+        }
+
+
+        const preview =
+            document.createElement("div");
+
+        preview.className =
+            "message-reply-preview";
+
+
+        preview.dataset.replyTarget =
+            String(data.reply_to_id);
+
+
+        const name =
+            document.createElement("span");
+
+        name.className =
+            "reply-preview-name";
+
+
+        if (data.reply_sender_name) {
+
+            name.textContent =
+                data.reply_sender_name;
+
+        } else {
+
+            name.textContent =
+                isMine ? "You" : "Replied message";
+        }
+
+
+        const text =
+            document.createElement("span");
+
+        text.className =
+            "reply-preview-text";
+
+
+        text.textContent =
+            data.reply_preview ||
+            "Message";
+
+
+        preview.appendChild(name);
+
+        preview.appendChild(text);
+
+
+        preview.addEventListener(
+            "click",
+            function (event) {
+
+                event.stopPropagation();
+
+                scrollToMessage(
+                    Number(data.reply_to_id)
+                );
+            }
+        );
+
+
+        return preview;
+    }
+
+
+    // =========================================================
+    // ADD REPLY BUTTON
+    // =========================================================
+
+    function createReplyButton(messageData) {
+
+        const button =
+            document.createElement("button");
+
+
+        button.type =
+            "button";
+
+
+        button.className =
+            "reply-message-btn";
+
+
+        button.dataset.messageId =
+            String(messageData.id);
+
+
+        button.dataset.messageType =
+            messageData.message_type ||
+            "text";
+
+
+        button.title =
+            "Reply";
+
+
+        button.innerHTML =
+            '<i class="bi bi-reply-fill"></i>';
+
+
+        button.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+                event.stopPropagation();
+
+
+                const messageElement =
+                    button.closest(
+                        "[data-message-id]"
+                    );
+
+
+                startReply(
+                    messageElement
+                );
+            }
+        );
+
+
+        return button;
+    }
+
+
+    // =========================================================
     // APPEND MESSAGE TO CHAT
     // =========================================================
 
@@ -158,8 +507,29 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         const messageSenderId =
             Number(data.sender_id);
 
+        const messageReceiverId =
+            Number(data.receiver_id);
+
+
         const isMine =
             messageSenderId === senderId;
+
+
+        // -----------------------------------------------------
+        // Prevent duplicate message rendering
+        // -----------------------------------------------------
+
+        if (data.id) {
+
+            const existingMessage =
+                chatBox.querySelector(
+                    `[data-message-id="${data.id}"]`
+                );
+
+            if (existingMessage) {
+                return;
+            }
+        }
 
 
         const wrapper =
@@ -168,8 +538,20 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
         wrapper.className =
             isMine
-                ? "d-flex justify-content-end mb-2"
-                : "d-flex justify-content-start mb-2";
+                ? "d-flex justify-content-end mb-2 nextura-message-row sent"
+                : "d-flex justify-content-start mb-2 nextura-message-row received";
+
+
+        const messageWrapper =
+            document.createElement("div");
+
+
+        messageWrapper.className =
+            "nextura-message-wrapper";
+
+
+        messageWrapper.style.maxWidth =
+            "75%";
 
 
         const bubble =
@@ -180,6 +562,34 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             isMine
                 ? "nextura-message sent"
                 : "nextura-message received";
+
+
+        bubble.dataset.messageId =
+            data.id
+                ? String(data.id)
+                : "";
+
+
+        bubble.dataset.senderId =
+            String(messageSenderId);
+
+
+        bubble.dataset.receiverId =
+            String(messageReceiverId);
+
+
+        bubble.dataset.messageType =
+            data.message_type ||
+            "text";
+
+
+        bubble.dataset.messagePreview =
+            getReplyPreviewText(data);
+
+
+        bubble.dataset.senderName =
+            data.sender_name ||
+            (isMine ? "You" : "");
 
 
         bubble.style.maxWidth =
@@ -196,6 +606,25 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
         // =====================================================
+        // REPLY PREVIEW
+        // =====================================================
+
+        const replyPreview =
+            createReplyPreview(
+                data,
+                isMine
+            );
+
+
+        if (replyPreview) {
+
+            bubble.appendChild(
+                replyPreview
+            );
+        }
+
+
+        // =====================================================
         // VOICE MESSAGE
         // =====================================================
 
@@ -207,9 +636,14 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             const audio =
                 document.createElement("audio");
 
-            audio.controls = true;
 
-            audio.preload = "metadata";
+            audio.controls =
+                true;
+
+
+            audio.preload =
+                "metadata";
+
 
             audio.style.maxWidth =
                 "240px";
@@ -228,7 +662,9 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             }
 
 
-            bubble.appendChild(audio);
+            bubble.appendChild(
+                audio
+            );
 
         }
 
@@ -241,10 +677,18 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             const text =
                 document.createElement("span");
 
+
+            text.className =
+                "message-text";
+
+
             text.textContent =
                 data.message || "";
 
-            bubble.appendChild(text);
+
+            bubble.appendChild(
+                text
+            );
         }
 
 
@@ -257,27 +701,190 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             const status =
                 document.createElement("small");
 
+
             status.className =
                 "message-status";
+
 
             status.textContent =
                 " ✓✓";
 
+
             status.style.marginLeft =
                 "6px";
+
 
             status.style.opacity =
                 "0.7";
 
-            bubble.appendChild(status);
+
+            bubble.appendChild(
+                status
+            );
         }
 
 
-        wrapper.appendChild(bubble);
+        // =====================================================
+        // REPLY BUTTON
+        // =====================================================
 
-        chatBox.appendChild(wrapper);
+        if (data.id) {
+
+            const replyButton =
+                createReplyButton(
+                    data
+                );
+
+
+            bubble.appendChild(
+                replyButton
+            );
+        }
+
+
+        messageWrapper.appendChild(
+            bubble
+        );
+
+
+        wrapper.appendChild(
+            messageWrapper
+        );
+
+
+        chatBox.appendChild(
+            wrapper
+        );
+
 
         scrollChatToBottom();
+    }
+
+
+    // =========================================================
+    // EXISTING SERVER-SIDE MESSAGE REPLY BUTTONS
+    // =========================================================
+
+    function initializeExistingReplyButtons() {
+
+        if (!chatBox) {
+            return;
+        }
+
+
+        const buttons =
+            chatBox.querySelectorAll(
+                ".reply-message-btn"
+            );
+
+
+        buttons.forEach(
+            function (button) {
+
+                if (
+                    button.dataset.replyInitialized ===
+                    "true"
+                ) {
+                    return;
+                }
+
+
+                button.dataset.replyInitialized =
+                    "true";
+
+
+                button.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        const messageElement =
+                            button.closest(
+                                "[data-message-id]"
+                            );
+
+
+                        startReply(
+                            messageElement
+                        );
+                    }
+                );
+            }
+        );
+
+
+        const previews =
+            chatBox.querySelectorAll(
+                ".message-reply-preview"
+            );
+
+
+        previews.forEach(
+            function (preview) {
+
+                if (
+                    preview.dataset.clickInitialized ===
+                    "true"
+                ) {
+                    return;
+                }
+
+
+                preview.dataset.clickInitialized =
+                    "true";
+
+
+                preview.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        const targetId =
+                            Number(
+                                preview.dataset.replyTarget
+                            );
+
+
+                        scrollToMessage(
+                            targetId
+                        );
+                    }
+                );
+            }
+        );
+    }
+
+
+    initializeExistingReplyButtons();
+
+
+    // =========================================================
+    // CANCEL REPLY
+    // =========================================================
+
+    if (cancelReplyBtn) {
+
+        cancelReplyBtn.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+                clearReply();
+
+                if (chatInput) {
+                    chatInput.focus();
+                }
+            }
+        );
     }
 
 
@@ -290,10 +897,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         chatForm.addEventListener(
             "submit",
             function (event) {
-
-                // VERY IMPORTANT:
-                // Prevent the browser from submitting
-                // the form normally and reloading the page.
 
                 event.preventDefault();
                 event.stopPropagation();
@@ -319,7 +922,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
 
                 if (!message) {
-
                     return;
                 }
 
@@ -350,30 +952,46 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                 );
 
 
-                // =================================================
-                // SEND TO FLASK SOCKET.IO
-                // =================================================
+                const payload = {
+
+                    receiver_id:
+                        receiverId,
+
+                    message:
+                        message
+                };
+
+
+                // -------------------------------------------------
+                // Add reply information if replying
+                // -------------------------------------------------
+
+                if (replyToId) {
+
+                    payload.reply_to_id =
+                        replyToId;
+                }
+
 
                 socket.emit(
                     "send_message",
-                    {
-                        receiver_id:
-                            receiverId,
-
-                        message:
-                            message
-                    }
+                    payload
                 );
 
 
-                // Clear input immediately.
+                // Clear input
 
                 chatInput.value = "";
+
+
+                // Clear reply mode
+
+                clearReply();
+
 
                 chatInput.focus();
             }
         );
-
 
     } else {
 
@@ -403,9 +1021,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
             const messageReceiver =
                 Number(data.receiver_id);
 
-
-            // Make sure the message belongs
-            // to the conversation currently open.
 
             const belongsToChat =
                 (
@@ -707,6 +1322,7 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
 
                 event.preventDefault();
 
+
                 emojiPicker.classList.toggle(
                     "d-none"
                 );
@@ -734,10 +1350,6 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
         emojiSearch.addEventListener(
             "input",
             function () {
-
-                // Emoji characters themselves don't have
-                // meaningful text search, but keeping the
-                // input functional prevents errors.
 
                 renderEmojis();
             }
@@ -895,16 +1507,36 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
                                     );
 
 
+                                    const payload = {
+
+                                        receiver_id:
+                                            receiverId,
+
+                                        audio:
+                                            reader.result
+                                    };
+
+
+                                    // -----------------------------------------
+                                    // Include reply information for voice reply
+                                    // -----------------------------------------
+
+                                    if (replyToId) {
+
+                                        payload.reply_to_id =
+                                            replyToId;
+                                    }
+
+
                                     socket.emit(
                                         "send_voice",
-                                        {
-                                            receiver_id:
-                                                receiverId,
-
-                                            audio:
-                                                reader.result
-                                        }
+                                        payload
                                     );
+
+
+                                    // Clear reply mode
+
+                                    clearReply();
                                 };
 
 
@@ -1531,6 +2163,8 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
     setTimeout(
         function () {
 
+            initializeExistingReplyButtons();
+
             scrollChatToBottom();
 
         },
@@ -1547,3 +2181,4 @@ console.log("🔥 NEXTURA CHAT.JS LOADED");
     );
 
 })();
+
