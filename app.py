@@ -37,10 +37,11 @@ from werkzeug.security import (
 from datetime import datetime, timedelta
 
 import sqlite3
+import psycopg
+from psycopg.rows import dict_row
 import os
 import base64
 import secrets
-
 
 # =========================================================
 # APP SETUP
@@ -90,7 +91,22 @@ online_users = set()
 # DATABASE
 # =========================================================
 
+# =========================================================
+# DATABASE
+# =========================================================
+
 def get_db():
+
+    database_url = os.getenv("DATABASE_URL")
+
+    if database_url:
+
+        conn = psycopg.connect(
+            database_url,
+            row_factory=dict_row
+        )
+
+        return conn
 
     conn = sqlite3.connect(
         "database.db",
@@ -102,265 +118,627 @@ def get_db():
     return conn
 
 
+def db_execute(
+    db,
+    query,
+    params=()
+):
+
+    """
+    Execute SQL using the correct placeholder
+    format for the active database.
+
+    SQLite uses:
+        ?
+
+    PostgreSQL uses:
+        %s
+    """
+
+    if os.getenv("DATABASE_URL"):
+
+        query = query.replace(
+            "?",
+            "%s"
+        )
+
+    return db.execute(
+        query,
+        params
+    )
+# def init_db():
+
+    # db = get_db()
+
+    # # -------------------------
+    # # USERS
+    # # -------------------------
+
+    # db.execute("""
+    #     CREATE TABLE IF NOT EXISTS users (
+
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    #         username TEXT UNIQUE NOT NULL,
+
+    #         email TEXT UNIQUE NOT NULL,
+
+    #         password TEXT NOT NULL,
+
+    #         profile_image TEXT
+    #             DEFAULT 'default.png'
+    #     )
+    # """)
+
+    # # -------------------------
+    # # MESSAGES
+    # # -------------------------
+
+    # db.execute("""
+    #     CREATE TABLE IF NOT EXISTS messages (
+
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    #         sender_id INTEGER NOT NULL,
+
+    #         receiver_id INTEGER NOT NULL,
+
+    #         message TEXT NOT NULL,
+
+    #         message_type TEXT
+    #             DEFAULT 'text',
+
+    #         timestamp DATETIME
+    #             DEFAULT CURRENT_TIMESTAMP,
+
+    #         status TEXT
+    #             DEFAULT 'sent'
+    #     )
+    # """)
+
+    # # -------------------------
+    # # NOTIFICATIONS
+    # # -------------------------
+
+    # db.execute("""
+    #     CREATE TABLE IF NOT EXISTS notifications (
+
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    #         user_id INTEGER NOT NULL,
+
+    #         sender_id INTEGER NOT NULL,
+
+    #         message TEXT,
+
+    #         is_read INTEGER
+    #             DEFAULT 0,
+
+    #         created_at DATETIME
+    #             DEFAULT CURRENT_TIMESTAMP
+    #     )
+    # """)
+
+    # # =====================================================
+    # # MESSAGE MIGRATIONS
+    # # =====================================================
+
+    # message_columns = db.execute(
+    #     "PRAGMA table_info(messages)"
+    # ).fetchall()
+
+    # message_column_names = [
+    #     column["name"]
+    #     for column in message_columns
+    # ]
+
+    # # -----------------------------------------------------
+    # # REPLY TO ID
+    # # -----------------------------------------------------
+
+    # if "reply_to_id" not in message_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE messages
+    #         ADD COLUMN reply_to_id INTEGER
+    #     """)
+
+    #     print(
+    #         "✅ Added reply_to_id column to messages table."
+    #     )
+
+    #     message_column_names.append(
+    #         "reply_to_id"
+    #     )
+
+    # # -----------------------------------------------------
+    # # DELETE FOR SENDER
+    # # -----------------------------------------------------
+
+    # if "deleted_for_sender" not in message_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE messages
+    #         ADD COLUMN deleted_for_sender INTEGER
+    #         DEFAULT 0
+    #     """)
+
+    #     print(
+    #         "✅ Added deleted_for_sender column."
+    #     )
+
+    #     message_column_names.append(
+    #         "deleted_for_sender"
+    #     )
+
+    # # -----------------------------------------------------
+    # # DELETE FOR RECEIVER
+    # # -----------------------------------------------------
+
+    # if "deleted_for_receiver" not in message_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE messages
+    #         ADD COLUMN deleted_for_receiver INTEGER
+    #         DEFAULT 0
+    #     """)
+
+    #     print(
+    #         "✅ Added deleted_for_receiver column."
+    #     )
+
+    #     message_column_names.append(
+    #         "deleted_for_receiver"
+    #     )
+
+    # # -----------------------------------------------------
+    # # DELETE FOR EVERYONE
+    # # -----------------------------------------------------
+
+    # if "deleted_for_everyone" not in message_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE messages
+    #         ADD COLUMN deleted_for_everyone INTEGER
+    #         DEFAULT 0
+    #     """)
+
+    #     print(
+    #         "✅ Added deleted_for_everyone column."
+    #     )
+
+    #     message_column_names.append(
+    #         "deleted_for_everyone"
+    #     )
+
+    # # -----------------------------------------------------
+    # # PHASE 2.3 — EDITED
+    # # -----------------------------------------------------
+
+    # if "edited" not in message_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE messages
+    #         ADD COLUMN edited INTEGER
+    #         DEFAULT 0
+    #     """)
+
+    #     print(
+    #         "✅ Added edited column."
+    #     )
+
+    #     message_column_names.append(
+    #         "edited"
+    #     )
+
+    # # -----------------------------------------------------
+    # # PHASE 2.3 — EDITED AT
+    # # -----------------------------------------------------
+
+    # if "edited_at" not in message_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE messages
+    #         ADD COLUMN edited_at DATETIME
+    #     """)
+
+    #     print(
+    #         "✅ Added edited_at column."
+    #     )
+
+    #     message_column_names.append(
+    #         "edited_at"
+    #     )
+
+    # # =====================================================
+    # # PASSWORD RESET MIGRATIONS
+    # # =====================================================
+
+    # user_columns = db.execute(
+    #     "PRAGMA table_info(users)"
+    # ).fetchall()
+
+    # user_column_names = [
+    #     column["name"]
+    #     for column in user_columns
+    # ]
+
+    # # -----------------------------------------------------
+    # # PASSWORD RESET TOKEN
+    # # -----------------------------------------------------
+
+    # if "reset_token" not in user_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE users
+    #         ADD COLUMN reset_token TEXT
+    #     """)
+
+    #     print(
+    #         "✅ Added reset_token column."
+    #     )
+
+    #     user_column_names.append(
+    #         "reset_token"
+    #     )
+
+    # # -----------------------------------------------------
+    # # PASSWORD RESET TOKEN EXPIRY
+    # # -----------------------------------------------------
+
+    # if "reset_token_expires" not in user_column_names:
+
+    #     db.execute("""
+    #         ALTER TABLE users
+    #         ADD COLUMN reset_token_expires DATETIME
+    #     """)
+
+    #     print(
+    #         "✅ Added reset_token_expires column."
+    #     )
+
+    #     user_column_names.append(
+    #         "reset_token_expires"
+    #     )
+
+    # db.commit()
+
+    # db.close()
 def init_db():
 
     db = get_db()
 
-    # -------------------------
-    # USERS
-    # -------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-            username TEXT UNIQUE NOT NULL,
-
-            email TEXT UNIQUE NOT NULL,
-
-            password TEXT NOT NULL,
-
-            profile_image TEXT
-                DEFAULT 'default.png'
-        )
-    """)
-
-    # -------------------------
-    # MESSAGES
-    # -------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS messages (
-
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-            sender_id INTEGER NOT NULL,
-
-            receiver_id INTEGER NOT NULL,
-
-            message TEXT NOT NULL,
-
-            message_type TEXT
-                DEFAULT 'text',
-
-            timestamp DATETIME
-                DEFAULT CURRENT_TIMESTAMP,
-
-            status TEXT
-                DEFAULT 'sent'
-        )
-    """)
-
-    # -------------------------
-    # NOTIFICATIONS
-    # -------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS notifications (
-
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-            user_id INTEGER NOT NULL,
-
-            sender_id INTEGER NOT NULL,
-
-            message TEXT,
-
-            is_read INTEGER
-                DEFAULT 0,
-
-            created_at DATETIME
-                DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    database_url = os.getenv("DATABASE_URL")
 
     # =====================================================
-    # MESSAGE MIGRATIONS
+    # POSTGRESQL
     # =====================================================
 
-    message_columns = db.execute(
-        "PRAGMA table_info(messages)"
-    ).fetchall()
+    if database_url:
 
-    message_column_names = [
-        column["name"]
-        for column in message_columns
-    ]
-
-    # -----------------------------------------------------
-    # REPLY TO ID
-    # -----------------------------------------------------
-
-    if "reply_to_id" not in message_column_names:
+        # -------------------------------------------------
+        # USERS
+        # -------------------------------------------------
 
         db.execute("""
-            ALTER TABLE messages
-            ADD COLUMN reply_to_id INTEGER
+            CREATE TABLE IF NOT EXISTS users (
+
+                id INTEGER GENERATED BY DEFAULT AS IDENTITY
+                    PRIMARY KEY,
+
+                username TEXT UNIQUE NOT NULL,
+
+                email TEXT UNIQUE NOT NULL,
+
+                password TEXT NOT NULL,
+
+                profile_image TEXT
+                    DEFAULT 'default.png',
+
+                reset_token TEXT,
+
+                reset_token_expires TIMESTAMP
+            )
         """)
 
-        print(
-            "✅ Added reply_to_id column to messages table."
-        )
+        # -------------------------------------------------
+        # MESSAGES
+        # -------------------------------------------------
 
-        message_column_names.append(
-            "reply_to_id"
-        )
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
 
-    # -----------------------------------------------------
-    # DELETE FOR SENDER
-    # -----------------------------------------------------
+                id INTEGER GENERATED BY DEFAULT AS IDENTITY
+                    PRIMARY KEY,
 
-    if "deleted_for_sender" not in message_column_names:
+                sender_id INTEGER NOT NULL,
+
+                receiver_id INTEGER NOT NULL,
+
+                message TEXT NOT NULL,
+
+                message_type TEXT
+                    DEFAULT 'text',
+
+                timestamp TIMESTAMP
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                status TEXT
+                    DEFAULT 'sent',
+
+                reply_to_id INTEGER,
+
+                deleted_for_sender INTEGER
+                    DEFAULT 0,
+
+                deleted_for_receiver INTEGER
+                    DEFAULT 0,
+
+                deleted_for_everyone INTEGER
+                    DEFAULT 0,
+
+                edited INTEGER
+                    DEFAULT 0,
+
+                edited_at TIMESTAMP
+            )
+        """)
+
+        # -------------------------------------------------
+        # NOTIFICATIONS
+        # -------------------------------------------------
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS notifications (
+
+                id INTEGER GENERATED BY DEFAULT AS IDENTITY
+                    PRIMARY KEY,
+
+                user_id INTEGER NOT NULL,
+
+                sender_id INTEGER NOT NULL,
+
+                message TEXT,
+
+                is_read INTEGER
+                    DEFAULT 0,
+
+                created_at TIMESTAMP
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # -------------------------------------------------
+        # SAFETY MIGRATIONS
+        # -------------------------------------------------
 
         db.execute("""
             ALTER TABLE messages
-            ADD COLUMN deleted_for_sender INTEGER
+            ADD COLUMN IF NOT EXISTS reply_to_id INTEGER
+        """)
+
+        db.execute("""
+            ALTER TABLE messages
+            ADD COLUMN IF NOT EXISTS deleted_for_sender INTEGER
             DEFAULT 0
         """)
 
-        print(
-            "✅ Added deleted_for_sender column."
-        )
-
-        message_column_names.append(
-            "deleted_for_sender"
-        )
-
-    # -----------------------------------------------------
-    # DELETE FOR RECEIVER
-    # -----------------------------------------------------
-
-    if "deleted_for_receiver" not in message_column_names:
-
         db.execute("""
             ALTER TABLE messages
-            ADD COLUMN deleted_for_receiver INTEGER
+            ADD COLUMN IF NOT EXISTS deleted_for_receiver INTEGER
             DEFAULT 0
         """)
 
-        print(
-            "✅ Added deleted_for_receiver column."
-        )
-
-        message_column_names.append(
-            "deleted_for_receiver"
-        )
-
-    # -----------------------------------------------------
-    # DELETE FOR EVERYONE
-    # -----------------------------------------------------
-
-    if "deleted_for_everyone" not in message_column_names:
-
         db.execute("""
             ALTER TABLE messages
-            ADD COLUMN deleted_for_everyone INTEGER
+            ADD COLUMN IF NOT EXISTS deleted_for_everyone INTEGER
             DEFAULT 0
         """)
 
-        print(
-            "✅ Added deleted_for_everyone column."
-        )
-
-        message_column_names.append(
-            "deleted_for_everyone"
-        )
-
-    # -----------------------------------------------------
-    # PHASE 2.3 — EDITED
-    # -----------------------------------------------------
-
-    if "edited" not in message_column_names:
-
         db.execute("""
             ALTER TABLE messages
-            ADD COLUMN edited INTEGER
+            ADD COLUMN IF NOT EXISTS edited INTEGER
             DEFAULT 0
         """)
 
-        print(
-            "✅ Added edited column."
-        )
-
-        message_column_names.append(
-            "edited"
-        )
-
-    # -----------------------------------------------------
-    # PHASE 2.3 — EDITED AT
-    # -----------------------------------------------------
-
-    if "edited_at" not in message_column_names:
-
         db.execute("""
             ALTER TABLE messages
-            ADD COLUMN edited_at DATETIME
+            ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP
         """)
-
-        print(
-            "✅ Added edited_at column."
-        )
-
-        message_column_names.append(
-            "edited_at"
-        )
-
-    # =====================================================
-    # PASSWORD RESET MIGRATIONS
-    # =====================================================
-
-    user_columns = db.execute(
-        "PRAGMA table_info(users)"
-    ).fetchall()
-
-    user_column_names = [
-        column["name"]
-        for column in user_columns
-    ]
-
-    # -----------------------------------------------------
-    # PASSWORD RESET TOKEN
-    # -----------------------------------------------------
-
-    if "reset_token" not in user_column_names:
 
         db.execute("""
             ALTER TABLE users
-            ADD COLUMN reset_token TEXT
+            ADD COLUMN IF NOT EXISTS reset_token TEXT
         """)
-
-        print(
-            "✅ Added reset_token column."
-        )
-
-        user_column_names.append(
-            "reset_token"
-        )
-
-    # -----------------------------------------------------
-    # PASSWORD RESET TOKEN EXPIRY
-    # -----------------------------------------------------
-
-    if "reset_token_expires" not in user_column_names:
 
         db.execute("""
             ALTER TABLE users
-            ADD COLUMN reset_token_expires DATETIME
+            ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP
         """)
 
-        print(
-            "✅ Added reset_token_expires column."
-        )
+        print("✅ PostgreSQL database initialized.")
 
-        user_column_names.append(
-            "reset_token_expires"
-        )
+    # =====================================================
+    # SQLITE
+    # =====================================================
+
+    else:
+
+        # -------------------------------------------------
+        # USERS
+        # -------------------------------------------------
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                username TEXT UNIQUE NOT NULL,
+
+                email TEXT UNIQUE NOT NULL,
+
+                password TEXT NOT NULL,
+
+                profile_image TEXT
+                    DEFAULT 'default.png'
+            )
+        """)
+
+        # -------------------------------------------------
+        # MESSAGES
+        # -------------------------------------------------
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                sender_id INTEGER NOT NULL,
+
+                receiver_id INTEGER NOT NULL,
+
+                message TEXT NOT NULL,
+
+                message_type TEXT
+                    DEFAULT 'text',
+
+                timestamp DATETIME
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                status TEXT
+                    DEFAULT 'sent'
+            )
+        """)
+
+        # -------------------------------------------------
+        # NOTIFICATIONS
+        # -------------------------------------------------
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS notifications (
+
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                user_id INTEGER NOT NULL,
+
+                sender_id INTEGER NOT NULL,
+
+                message TEXT,
+
+                is_read INTEGER
+                    DEFAULT 0,
+
+                created_at DATETIME
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # =================================================
+        # MESSAGE MIGRATIONS
+        # =================================================
+
+        message_columns = db.execute(
+            "PRAGMA table_info(messages)"
+        ).fetchall()
+
+        message_column_names = [
+            column["name"]
+            for column in message_columns
+        ]
+
+        if "reply_to_id" not in message_column_names:
+
+            db.execute("""
+                ALTER TABLE messages
+                ADD COLUMN reply_to_id INTEGER
+            """)
+
+            print("✅ Added reply_to_id column to messages table.")
+
+        if "deleted_for_sender" not in message_column_names:
+
+            db.execute("""
+                ALTER TABLE messages
+                ADD COLUMN deleted_for_sender INTEGER
+                DEFAULT 0
+            """)
+
+            print("✅ Added deleted_for_sender column.")
+
+        if "deleted_for_receiver" not in message_column_names:
+
+            db.execute("""
+                ALTER TABLE messages
+                ADD COLUMN deleted_for_receiver INTEGER
+                DEFAULT 0
+            """)
+
+            print("✅ Added deleted_for_receiver column.")
+
+        if "deleted_for_everyone" not in message_column_names:
+
+            db.execute("""
+                ALTER TABLE messages
+                ADD COLUMN deleted_for_everyone INTEGER
+                DEFAULT 0
+            """)
+
+            print("✅ Added deleted_for_everyone column.")
+
+        if "edited" not in message_column_names:
+
+            db.execute("""
+                ALTER TABLE messages
+                ADD COLUMN edited INTEGER
+                DEFAULT 0
+            """)
+
+            print("✅ Added edited column.")
+
+        if "edited_at" not in message_column_names:
+
+            db.execute("""
+                ALTER TABLE messages
+                ADD COLUMN edited_at DATETIME
+            """)
+
+            print("✅ Added edited_at column.")
+
+        # =================================================
+        # PASSWORD RESET MIGRATIONS
+        # =================================================
+
+        user_columns = db.execute(
+            "PRAGMA table_info(users)"
+        ).fetchall()
+
+        user_column_names = [
+            column["name"]
+            for column in user_columns
+        ]
+
+        if "reset_token" not in user_column_names:
+
+            db.execute("""
+                ALTER TABLE users
+                ADD COLUMN reset_token TEXT
+            """)
+
+            print("✅ Added reset_token column.")
+
+        if "reset_token_expires" not in user_column_names:
+
+            db.execute("""
+                ALTER TABLE users
+                ADD COLUMN reset_token_expires DATETIME
+            """)
+
+            print("✅ Added reset_token_expires column.")
+
+        print("✅ SQLite database initialized.")
 
     db.commit()
-
     db.close()
-
 
 init_db()
 
@@ -433,7 +811,13 @@ def get_reply_info(
             None
         )
 
-    reply_message = db.execute("""
+    # -----------------------------------------
+    # Find original message
+    # -----------------------------------------
+
+    reply_message = db_execute(
+        db,
+        """
         SELECT
 
             messages.id,
@@ -475,15 +859,17 @@ def get_reply_info(
 
         )
 
-    """, (
-        reply_to_id,
+        """,
+        (
+            reply_to_id,
 
-        sender_id,
-        receiver_id,
+            sender_id,
+            receiver_id,
 
-        receiver_id,
-        sender_id
-    )).fetchone()
+            receiver_id,
+            sender_id
+        )
+    ).fetchone()
 
     if not reply_message:
 
@@ -554,29 +940,62 @@ def create_notification(
 
     db = get_db()
 
-    cursor = db.execute("""
-        INSERT INTO notifications
-        (
-            user_id,
-            sender_id,
-            message
+    if os.getenv("DATABASE_URL"):
+
+        cursor = db_execute(
+            db,
+            """
+            INSERT INTO notifications
+            (
+                user_id,
+                sender_id,
+                message
+            )
+            VALUES (?, ?, ?)
+            RETURNING id
+            """,
+            (
+                receiver_id,
+                sender_id,
+                message
+            )
         )
-        VALUES (?, ?, ?)
-    """, (
-        receiver_id,
-        sender_id,
-        message
-    ))
 
-    notification_id = cursor.lastrowid
+        notification_id = cursor.fetchone()["id"]
 
-    sender = db.execute("""
+    else:
+
+        cursor = db_execute(
+            db,
+            """
+            INSERT INTO notifications
+            (
+                user_id,
+                sender_id,
+                message
+            )
+            VALUES (?, ?, ?)
+            """,
+            (
+                receiver_id,
+                sender_id,
+                message
+            )
+        )
+
+        notification_id = cursor.lastrowid
+
+    sender = db_execute(
+        db,
+        """
         SELECT username
         FROM users
         WHERE id = ?
-    """, (
-        sender_id,
-    )).fetchone()
+        """,
+        (
+            sender_id,
+        )
+    ).fetchone()
 
     sender_name = (
         sender["username"]
@@ -604,6 +1023,107 @@ def create_notification(
 
         room=f"user_{receiver_id}"
     )
+#         # =========================================================
+# # CREATE NOTIFICATION
+# # =========================================================
+
+# def create_notification(
+#     receiver_id,
+#     sender_id,
+#     message
+# ):
+
+#     """
+#     Creates a notification in the database
+#     and immediately sends it to the receiver
+#     through Socket.IO.
+#     """
+
+#     db = get_db()
+
+#     if os.getenv("DATABASE_URL"):
+
+#         cursor = db_execute(
+#             db,
+#             """
+#             INSERT INTO notifications
+#             (
+#                 user_id,
+#                 sender_id,
+#                 message
+#             )
+#             VALUES (?, ?, ?)
+#             RETURNING id
+#             """,
+#             (
+#                 receiver_id,
+#                 sender_id,
+#                 message
+#             )
+#         )
+
+#         notification_id = cursor.fetchone()["id"]
+
+#     else:
+
+#         cursor = db_execute(
+#             db,
+#             """
+#             INSERT INTO notifications
+#             (
+#                 user_id,
+#                 sender_id,
+#                 message
+#             )
+#             VALUES (?, ?, ?)
+#             """,
+#             (
+#                 receiver_id,
+#                 sender_id,
+#                 message
+#             )
+#         )
+
+#         notification_id = cursor.lastrowid
+
+#     sender = db_execute(
+#         db,
+#         """
+#         SELECT username
+#         FROM users
+#         WHERE id = ?
+#         """,
+#         (
+#             sender_id,
+#         )
+#     ).fetchone()
+
+#     sender_name = (
+#         sender["username"]
+#         if sender
+#         else "Someone"
+#     )
+
+#     db.commit()
+
+#     db.close()
+
+#     socketio.emit(
+#         "new_notification",
+#         {
+#             "id": notification_id,
+
+#             "sender_id": sender_id,
+
+#             "sender_name": sender_name,
+
+#             "receiver_id": receiver_id,
+
+#             "message": message
+#         },
+
+#         room=f"user_{receiver_id}"
+#     )
 
 
 # =========================================================
@@ -641,7 +1161,8 @@ def load_user(user_id):
 
     db = get_db()
 
-    user = db.execute(
+    user = db_execute(
+        db,
         """
         SELECT *
         FROM users
@@ -721,7 +1242,12 @@ def signup():
         # BASIC VALIDATION
         # -------------------------------------------------
 
-        if not username or not email or not password or not confirm_password:
+        if (
+            not username
+            or not email
+            or not password
+            or not confirm_password
+        ):
 
             flash(
                 "Please complete all registration fields."
@@ -774,7 +1300,6 @@ def signup():
             return render_template(
                 "signup.html"
             )
-
         # -------------------------------------------------
         # PASSWORD VALIDATION
         # -------------------------------------------------
@@ -841,9 +1366,9 @@ def signup():
                 "signup.html"
             )
 
-        # -------------------------------------------------
-        # CONFIRM PASSWORD
-        # -------------------------------------------------
+       # -------------------------------------------------
+# CONFIRM PASSWORD
+# -------------------------------------------------
 
         if password != confirm_password:
 
@@ -855,6 +1380,10 @@ def signup():
                 "signup.html"
             )
 
+        # -------------------------------------------------
+        # DATABASE
+        # -------------------------------------------------
+
         db = get_db()
 
         try:
@@ -863,7 +1392,8 @@ def signup():
             # CHECK FOR EXISTING ACCOUNT
             # -------------------------------------------------
 
-            existing_user = db.execute(
+            existing_user = db_execute(
+                db,
                 """
                 SELECT id
                 FROM users
@@ -899,7 +1429,8 @@ def signup():
                 password
             )
 
-            db.execute(
+            db_execute(
+                db,
                 """
                 INSERT INTO users
                 (
@@ -926,7 +1457,10 @@ def signup():
                 url_for("login")
             )
 
-        except sqlite3.IntegrityError:
+        except (
+            sqlite3.IntegrityError,
+            psycopg.IntegrityError
+        ):
 
             db.rollback()
 
@@ -934,17 +1468,25 @@ def signup():
                 "Username or email already exists."
             )
 
+            return render_template(
+                "signup.html"
+            )
+
         except Exception as e:
 
             db.rollback()
 
             print(
-                "Signup error:",
+                "❌ SIGNUP DATABASE ERROR:",
                 e
             )
 
             flash(
-                "Something went wrong while creating your account."
+                "An unexpected database error occurred. Please try again."
+            )
+
+            return render_template(
+                "signup.html"
             )
 
         finally:
@@ -954,8 +1496,6 @@ def signup():
     return render_template(
         "signup.html"
     )
-
-
 # =========================================================
 # LOGIN
 # =========================================================
@@ -980,7 +1520,8 @@ def login():
 
         db = get_db()
 
-        user = db.execute(
+        user = db_execute(
+            db,
             """
             SELECT *
             FROM users
@@ -1088,18 +1629,20 @@ def forgot_password():
             return redirect(
                 url_for("forgot_password")
             )
-
         db = get_db()
 
         try:
 
-            user = db.execute(
+            user = db_execute(
+                db,
                 """
                 SELECT id, email
                 FROM users
                 WHERE LOWER(email) = ?
                 """,
-                (email,)
+                (
+                    email,
+                )
             ).fetchone()
 
             if user:
@@ -1111,7 +1654,8 @@ def forgot_password():
                     + timedelta(minutes=30)
                 ).isoformat()
 
-                db.execute(
+                db_execute(
+                    db,
                     """
                     UPDATE users
                     SET reset_token = ?,
@@ -1127,13 +1671,12 @@ def forgot_password():
 
                 db.commit()
 
-                               # Create the password reset link.
+                # Create the password reset link.
                 reset_link = url_for(
                     "reset_password",
                     token=reset_token,
                     _external=True
                 )
-
                 # Send the reset link by email.
                 try:
                     send_password_reset_email(
@@ -1185,17 +1728,23 @@ def reset_password(token):
 
     try:
 
-        user = db.execute(
+        user = db_execute(
+            db,
             """
             SELECT id, email, reset_token,
                    reset_token_expires
             FROM users
             WHERE reset_token = ?
             """,
-            (token,)
+            (
+                token,
+            )
         ).fetchone()
 
-        # Invalid or already-used token.
+        # -----------------------------------------
+        # Invalid or already-used token
+        # -----------------------------------------
+
         if not user:
 
             flash(
@@ -1206,12 +1755,26 @@ def reset_password(token):
                 url_for("login")
             )
 
-        # Check expiration.
+        # -----------------------------------------
+        # Check expiration
+        # -----------------------------------------
+
+        expires_value = user["reset_token_expires"]
+
         try:
 
-            expires_at = datetime.fromisoformat(
-                user["reset_token_expires"]
-            )
+            if isinstance(
+                expires_value,
+                datetime
+            ):
+
+                expires_at = expires_value
+
+            else:
+
+                expires_at = datetime.fromisoformat(
+                    str(expires_value)
+                )
 
         except (
             TypeError,
@@ -1226,16 +1789,23 @@ def reset_password(token):
                 url_for("login")
             )
 
+        # -----------------------------------------
+        # Expired token
+        # -----------------------------------------
+
         if datetime.utcnow() > expires_at:
 
-            db.execute(
+            db_execute(
+                db,
                 """
                 UPDATE users
                 SET reset_token = NULL,
                     reset_token_expires = NULL
                 WHERE id = ?
                 """,
-                (user["id"],)
+                (
+                    user["id"],
+                )
             )
 
             db.commit()
@@ -1247,6 +1817,10 @@ def reset_password(token):
             return redirect(
                 url_for("forgot_password")
             )
+
+        # -----------------------------------------
+        # POST - Set new password
+        # -----------------------------------------
 
         if request.method == "POST":
 
@@ -1260,7 +1834,10 @@ def reset_password(token):
                 ""
             )
 
-            # Password validation
+            # -----------------------------------------
+            # Password length
+            # -----------------------------------------
+
             if len(password) < 8:
 
                 flash(
@@ -1268,8 +1845,13 @@ def reset_password(token):
                 )
 
                 return render_template(
-                    "reset_password.html"
+                    "reset_password.html",
+                    token=token
                 )
+
+            # -----------------------------------------
+            # Uppercase
+            # -----------------------------------------
 
             if not re.search(
                 r"[A-Z]",
@@ -1281,8 +1863,13 @@ def reset_password(token):
                 )
 
                 return render_template(
-                    "reset_password.html"
+                    "reset_password.html",
+                    token=token
                 )
+
+            # -----------------------------------------
+            # Lowercase
+            # -----------------------------------------
 
             if not re.search(
                 r"[a-z]",
@@ -1294,8 +1881,13 @@ def reset_password(token):
                 )
 
                 return render_template(
-                    "reset_password.html"
+                    "reset_password.html",
+                    token=token
                 )
+
+            # -----------------------------------------
+            # Number
+            # -----------------------------------------
 
             if not re.search(
                 r"\d",
@@ -1307,8 +1899,13 @@ def reset_password(token):
                 )
 
                 return render_template(
-                    "reset_password.html"
+                    "reset_password.html",
+                    token=token
                 )
+
+            # -----------------------------------------
+            # Special character
+            # -----------------------------------------
 
             if not re.search(
                 r"[^A-Za-z0-9]",
@@ -1320,8 +1917,13 @@ def reset_password(token):
                 )
 
                 return render_template(
-                    "reset_password.html"
+                    "reset_password.html",
+                    token=token
                 )
+
+            # -----------------------------------------
+            # Confirm password
+            # -----------------------------------------
 
             if password != confirm_password:
 
@@ -1330,14 +1932,24 @@ def reset_password(token):
                 )
 
                 return render_template(
-                    "reset_password.html"
+                    "reset_password.html",
+                    token=token
                 )
+
+            # -----------------------------------------
+            # Hash new password
+            # -----------------------------------------
 
             password_hash = generate_password_hash(
                 password
             )
 
-            db.execute(
+            # -----------------------------------------
+            # Update password
+            # -----------------------------------------
+
+            db_execute(
+                db,
                 """
                 UPDATE users
                 SET password = ?,
@@ -1361,8 +1973,13 @@ def reset_password(token):
                 url_for("login")
             )
 
+        # -----------------------------------------
+        # GET - Show reset form
+        # -----------------------------------------
+
         return render_template(
-            "reset_password.html"
+            "reset_password.html",
+            token=token
         )
 
     except Exception as e:
@@ -1385,7 +2002,6 @@ def reset_password(token):
     finally:
 
         db.close()
-
 
 # =========================================================
 # LOGOUT
@@ -1422,6 +2038,11 @@ def dashboard():
 # =========================================================
 
 @app.route("/api/dashboard")
+# =========================================================
+# DASHBOARD DATA API
+# =========================================================
+
+@app.route("/api/dashboard")
 @login_required
 def dashboard_data():
 
@@ -1433,20 +2054,26 @@ def dashboard_data():
         # Total contacts
         # -----------------------------------------
 
-        contacts = db.execute("""
+        contacts = db_execute(
+            db,
+            """
             SELECT COUNT(*) AS count
             FROM users
             WHERE id != ?
-        """, (
-            current_user.id,
-        )).fetchone()["count"]
+            """,
+            (
+                current_user.id,
+            )
+        ).fetchone()["count"]
 
         # -----------------------------------------
         # People the current user has conversations
         # with
         # -----------------------------------------
 
-        conversations = db.execute("""
+        conversations = db_execute(
+            db,
+            """
             SELECT COUNT(*) AS count
             FROM (
                 SELECT DISTINCT
@@ -1460,24 +2087,30 @@ def dashboard_data():
                     sender_id = ?
                     OR receiver_id = ?
             )
-        """, (
-            current_user.id,
-            current_user.id,
-            current_user.id
-        )).fetchone()["count"]
+            """,
+            (
+                current_user.id,
+                current_user.id,
+                current_user.id
+            )
+        ).fetchone()["count"]
 
         # -----------------------------------------
         # Unread notifications
         # -----------------------------------------
 
-        unread = db.execute("""
+        unread = db_execute(
+            db,
+            """
             SELECT COUNT(*) AS count
             FROM notifications
             WHERE user_id = ?
             AND is_read = 0
-        """, (
-            current_user.id,
-        )).fetchone()["count"]
+            """,
+            (
+                current_user.id,
+            )
+        ).fetchone()["count"]
 
         # -----------------------------------------
         # Recent conversations
@@ -1486,7 +2119,9 @@ def dashboard_data():
         # each person.
         # -----------------------------------------
 
-        recent = db.execute("""
+        recent = db_execute(
+            db,
+            """
             SELECT
                 other.id AS user_id,
                 other.username,
@@ -1496,6 +2131,7 @@ def dashboard_data():
                 m.timestamp,
                 m.sender_id,
                 m.status
+
             FROM messages m
 
             JOIN users other
@@ -1507,11 +2143,14 @@ def dashboard_data():
                 END
 
             WHERE
-                m.sender_id = ?
-                OR m.receiver_id = ?
+                (
+                    m.sender_id = ?
+                    OR m.receiver_id = ?
+                )
 
             AND m.id IN (
                 SELECT MAX(m2.id)
+
                 FROM messages m2
 
                 WHERE
@@ -1519,7 +2158,9 @@ def dashboard_data():
                         m2.sender_id = ?
                         AND m2.receiver_id = other.id
                     )
+
                     OR
+
                     (
                         m2.sender_id = other.id
                         AND m2.receiver_id = ?
@@ -1529,34 +2170,50 @@ def dashboard_data():
             ORDER BY m.timestamp DESC
 
             LIMIT 10
-        """, (
-            current_user.id,
+            """,
+            (
+                current_user.id,
 
-            current_user.id,
-            current_user.id,
+                current_user.id,
+                current_user.id,
 
-            current_user.id,
-            current_user.id
-        )).fetchall()
+                current_user.id,
+                current_user.id
+            )
+        ).fetchall()
 
         recent_conversations = []
 
         for conversation in recent:
 
-            message_preview = conversation["message"] or ""
+            message_preview = (
+                conversation["message"]
+                or ""
+            )
 
             if conversation["message_type"] == "voice":
-                message_preview = "🎙 Voice message"
+
+                message_preview = (
+                    "🎙 Voice message"
+                )
 
             elif conversation["message_type"] == "image":
-                message_preview = "🖼 Image"
+
+                message_preview = (
+                    "🖼 Image"
+                )
 
             elif conversation["message_type"] == "file":
-                message_preview = "📎 File"
+
+                message_preview = (
+                    "📎 File"
+                )
 
             if len(message_preview) > 45:
+
                 message_preview = (
-                    message_preview[:45] + "..."
+                    message_preview[:45]
+                    + "..."
                 )
 
             recent_conversations.append({
@@ -1593,9 +2250,15 @@ def dashboard_data():
             "success": True,
 
             "stats": {
-                "contacts": contacts,
-                "conversations": conversations,
-                "notifications": unread
+
+                "contacts":
+                    contacts,
+
+                "conversations":
+                    conversations,
+
+                "notifications":
+                    unread
             },
 
             "recent_conversations":
@@ -1610,8 +2273,11 @@ def dashboard_data():
         )
 
         return jsonify({
+
             "success": False,
-            "error": "Unable to load dashboard data."
+
+            "error":
+                "Unable to load dashboard data."
         }), 500
 
     finally:
@@ -1623,37 +2289,40 @@ def dashboard_data():
 # USERS
 # =========================================================
 
-
 @app.route("/users")
 @login_required
 def users():
 
     db = get_db()
 
-    users = db.execute(
-        """
-        SELECT
-            id,
-            username,
-            profile_image
-        FROM users
-        WHERE id != ?
-        """,
-        (
-            current_user.id,
+    try:
+
+        users = db_execute(
+            db,
+            """
+            SELECT
+                id,
+                username,
+                profile_image
+            FROM users
+            WHERE id != ?
+            """,
+            (
+                current_user.id,
+            )
+        ).fetchall()
+
+        return render_template(
+            "users.html",
+
+            users=users,
+
+            online_users=online_users
         )
-    ).fetchall()
 
-    db.close()
+    finally:
 
-    return render_template(
-        "users.html",
-
-        users=users,
-
-        online_users=online_users
-    )
-
+        db.close()
 
 # =========================================================
 # NOTIFICATION API
@@ -1665,88 +2334,119 @@ def get_notifications():
 
     db = get_db()
 
-    notifications = db.execute("""
-        SELECT
+    try:
 
-            notifications.id,
+        notifications = db_execute(
+            db,
+            """
+            SELECT
 
-            notifications.sender_id,
+                notifications.id,
 
-            notifications.message,
+                notifications.sender_id,
 
-            notifications.is_read,
+                notifications.message,
 
-            notifications.created_at,
+                notifications.is_read,
 
-            users.username AS sender_name
+                notifications.created_at,
 
-        FROM notifications
+                users.username AS sender_name
 
-        LEFT JOIN users
-            ON users.id =
-               notifications.sender_id
+            FROM notifications
 
-        WHERE notifications.user_id = ?
+            LEFT JOIN users
+                ON users.id =
+                   notifications.sender_id
 
-        ORDER BY
-            notifications.created_at DESC
+            WHERE notifications.user_id = ?
 
-        LIMIT 50
+            ORDER BY
+                notifications.created_at DESC
 
-    """, (
-        current_user.id,
-    )).fetchall()
+            LIMIT 50
 
-    unread = db.execute("""
-        SELECT COUNT(*) AS count
+            """,
+            (
+                current_user.id,
+            )
+        ).fetchall()
 
-        FROM notifications
+        # -----------------------------------------
+        # Unread notification count
+        # -----------------------------------------
 
-        WHERE user_id = ?
+        unread = db_execute(
+            db,
+            """
+            SELECT COUNT(*) AS count
 
-        AND is_read = 0
+            FROM notifications
 
-    """, (
-        current_user.id,
-    )).fetchone()
+            WHERE user_id = ?
 
-    db.close()
+            AND is_read = 0
 
-    return jsonify({
+            """,
+            (
+                current_user.id,
+            )
+        ).fetchone()["count"]
 
-        "success": True,
+        return jsonify({
 
-        "unread_count":
-            unread["count"],
+            "success": True,
 
-        "notifications": [
+            "unread_count":
+                unread,
 
-            {
-                "id":
-                    notification["id"],
+            "notifications": [
 
-                "sender_id":
-                    notification["sender_id"],
+                {
+                    "id":
+                        notification["id"],
 
-                "sender_name":
-                    notification["sender_name"]
-                    or "Someone",
+                    "sender_id":
+                        notification["sender_id"],
 
-                "message":
-                    notification["message"]
-                    or "New message",
+                    "sender_name":
+                        notification["sender_name"]
+                        or "Someone",
 
-                "is_read":
-                    notification["is_read"],
+                    "message":
+                        notification["message"]
+                        or "New message",
 
-                "created_at":
-                    notification["created_at"]
-            }
+                    "is_read":
+                        notification["is_read"],
 
-            for notification
-            in notifications
-        ]
-    })
+                    "created_at":
+                        notification["created_at"]
+                }
+
+                for notification
+                in notifications
+            ]
+        })
+
+    except Exception as e:
+
+        print(
+            "❌ NOTIFICATION API ERROR:",
+            e
+        )
+
+        return jsonify({
+
+            "success": False,
+
+            "error":
+                "Unable to load notifications."
+        }), 500
+
+    finally:
+
+        db.close()
 
 
 # =========================================================
@@ -1762,29 +2462,37 @@ def mark_notifications_read():
 
     db = get_db()
 
-    db.execute("""
-        UPDATE notifications
+    try:
+        db_execute(
+            db,
+            """
+            UPDATE notifications
+            SET is_read = 1
+            WHERE user_id = ?
+            """,
+            (
+                current_user.id,
+            )
+        )
 
-        SET is_read = 1
+        db.commit()
 
-        WHERE user_id = ?
+        return jsonify({
+            "success": True,
+            "message": "Notifications marked as read."
+        })
 
-    """, (
-        current_user.id,
-    ))
+    except Exception as e:
+        db.rollback()
+        print("❌ MARK NOTIFICATIONS READ ERROR:", e)
 
-    db.commit()
+        return jsonify({
+            "success": False,
+            "message": "Failed to mark notifications as read."
+        }), 500
 
-    db.close()
-
-    return jsonify({
-
-        "success": True,
-
-        "message":
-            "Notifications marked as read."
-    })
-
+    finally:
+        db.close()
 
 # =========================================================
 # CHAT PAGE
@@ -1796,136 +2504,212 @@ def chat(user_id):
 
     db = get_db()
 
-    # -----------------------------------------
-    # Get receiver
-    # -----------------------------------------
+    try:
+        receiver = db_execute(
+            db,
+            """
+            SELECT id, username, profile_image
+            FROM users
+            WHERE id = ?
+            """,
+            (user_id,)
+        ).fetchone()
 
-    receiver = db.execute(
-        """
-        SELECT
+        if not receiver:
+            flash("User not found.")
+            return redirect(url_for("users"))
 
-            id,
+        messages = db_execute(
+            db,
+            """
+            SELECT *
+            FROM messages
+            WHERE
+                deleted_for_everyone = 1
+                OR
+                (
+                    sender_id = ?
+                    AND receiver_id = ?
+                    AND deleted_for_sender = 0
+                )
+                OR
+                (
+                    sender_id = ?
+                    AND receiver_id = ?
+                    AND deleted_for_receiver = 0
+                )
+            ORDER BY timestamp ASC
+            """,
+            (
+                current_user.id,
+                user_id,
+                user_id,
+                current_user.id
+            )
+        ).fetchall()
 
-            username,
-
-            profile_image
-
-        FROM users
-
-        WHERE id = ?
-
-        """,
-        (
-            user_id,
+        db_execute(
+            db,
+            """
+            UPDATE notifications
+            SET is_read = 1
+            WHERE user_id = ?
+            AND sender_id = ?
+            """,
+            (
+                current_user.id,
+                user_id
+            )
         )
-    ).fetchone()
 
-    if not receiver:
+        db.commit()
 
+        return render_template(
+            "chat.html",
+            receiver=receiver,
+            messages=messages,
+            my_id=current_user.id
+        )
+
+    except Exception as e:
+        db.rollback()
+        print("❌ CHAT DATABASE ERROR:", e)
+
+        flash("Unable to open chat.")
+        return redirect(url_for("users"))
+
+    finally:
         db.close()
+    # # -----------------------------------------
+    # # Get receiver
+    # # -----------------------------------------
 
-        flash(
-            "User not found."
-        )
+    # receiver = db.execute(
+    #     """
+    #     SELECT
 
-        return redirect(
-            url_for("users")
-        )
+    #         id,
 
-    # -----------------------------------------
-    # Get messages
-    #
-    # Delete-for-me messages are hidden only
-    # from the user who deleted them.
-    #
-    # Delete-for-everyone messages remain in
-    # the result so they can display the
-    # deleted placeholder.
-    # -----------------------------------------
+    #         username,
 
-    messages = db.execute("""
-        SELECT *
+    #         profile_image
 
-        FROM messages
+    #     FROM users
 
-        WHERE
+    #     WHERE id = ?
 
-            deleted_for_everyone = 1
+    #     """,
+    #     (
+    #         user_id,
+    #     )
+    # ).fetchone()
 
-            OR
+    # if not receiver:
 
-            (
-                sender_id = ?
+    #     db.close()
 
-                AND
+    #     flash(
+    #         "User not found."
+    #     )
 
-                receiver_id = ?
+    #     return redirect(
+    #         url_for("users")
+    #     )
 
-                AND
+    # # -----------------------------------------
+    # # Get messages
+    # #
+    # # Delete-for-me messages are hidden only
+    # # from the user who deleted them.
+    # #
+    # # Delete-for-everyone messages remain in
+    # # the result so they can display the
+    # # deleted placeholder.
+    # # -----------------------------------------
 
-                deleted_for_sender = 0
-            )
+    # messages = db.execute("""
+    #     SELECT *
 
-            OR
+    #     FROM messages
 
-            (
-                sender_id = ?
+    #     WHERE
 
-                AND
+    #         deleted_for_everyone = 1
 
-                receiver_id = ?
+    #         OR
 
-                AND
+    #         (
+    #             sender_id = ?
 
-                deleted_for_receiver = 0
-            )
+    #             AND
 
-        ORDER BY
-            timestamp ASC
+    #             receiver_id = ?
 
-    """, (
-        current_user.id,
+    #             AND
 
-        user_id,
+    #             deleted_for_sender = 0
+    #         )
 
-        user_id,
+    #         OR
 
-        current_user.id
-    )).fetchall()
+    #         (
+    #             sender_id = ?
 
-    # -----------------------------------------
-    # Mark notifications from this user
-    # as read
-    # -----------------------------------------
+    #             AND
 
-    db.execute("""
-        UPDATE notifications
+    #             receiver_id = ?
 
-        SET is_read = 1
+    #             AND
 
-        WHERE user_id = ?
+    #             deleted_for_receiver = 0
+    #         )
 
-        AND sender_id = ?
+    #     ORDER BY
+    #         timestamp ASC
 
-    """, (
-        current_user.id,
+    # """, (
+    #     current_user.id,
 
-        user_id
-    ))
+    #     user_id,
 
-    db.commit()
+    #     user_id,
 
-    db.close()
+    #     current_user.id
+    # )).fetchall()
 
-    return render_template(
-        "chat.html",
+    # # -----------------------------------------
+    # # Mark notifications from this user
+    # # as read
+    # # -----------------------------------------
 
-        receiver=receiver,
+    # db.execute("""
+    #     UPDATE notifications
 
-        messages=messages,
+    #     SET is_read = 1
 
-        my_id=current_user.id
-    )
+    #     WHERE user_id = ?
+
+    #     AND sender_id = ?
+
+    # """, (
+    #     current_user.id,
+
+    #     user_id
+    # ))
+
+    # db.commit()
+
+    # db.close()
+
+    # return render_template(
+    #     "chat.html",
+
+    #     receiver=receiver,
+
+    #     messages=messages,
+
+    #     my_id=current_user.id
+    # )
 
 
 # =========================================================
@@ -2100,7 +2884,7 @@ def send_message(data):
 
         return
 
-    # -----------------------------------------
+       # -----------------------------------------
     # Reply
     # -----------------------------------------
 
@@ -2112,7 +2896,8 @@ def send_message(data):
 
     try:
 
-        receiver = db.execute(
+        receiver = db_execute(
+            db,
             """
             SELECT id
             FROM users
@@ -2143,46 +2928,98 @@ def send_message(data):
             receiver_id
         )
 
-        cursor = db.execute(
-            """
-            INSERT INTO messages
-            (
-                sender_id,
-                receiver_id,
-                message,
-                message_type,
-                status,
-                reply_to_id,
-                deleted_for_sender,
-                deleted_for_receiver,
-                deleted_for_everyone,
-                edited,
-                edited_at
-            )
-            VALUES
-            (
-                ?,
-                ?,
-                ?,
-                'text',
-                'sent',
-                ?,
-                0,
-                0,
-                0,
-                0,
-                NULL
-            )
-            """,
-            (
-                sender_id,
-                receiver_id,
-                message,
-                reply_to_id
-            )
-        )
+        # -----------------------------------------
+        # Save message
+        # -----------------------------------------
 
-        message_id = cursor.lastrowid
+        if os.getenv("DATABASE_URL"):
+
+            cursor = db_execute(
+                db,
+                """
+                INSERT INTO messages
+                (
+                    sender_id,
+                    receiver_id,
+                    message,
+                    message_type,
+                    status,
+                    reply_to_id,
+                    deleted_for_sender,
+                    deleted_for_receiver,
+                    deleted_for_everyone,
+                    edited,
+                    edited_at
+                )
+                VALUES
+                (
+                    ?,
+                    ?,
+                    ?,
+                    'text',
+                    'sent',
+                    ?,
+                    0,
+                    0,
+                    0,
+                    0,
+                    NULL
+                )
+                RETURNING id
+                """,
+                (
+                    sender_id,
+                    receiver_id,
+                    message,
+                    reply_to_id
+                )
+            )
+
+            message_id = cursor.fetchone()["id"]
+
+        else:
+
+            cursor = db_execute(
+                db,
+                """
+                INSERT INTO messages
+                (
+                    sender_id,
+                    receiver_id,
+                    message,
+                    message_type,
+                    status,
+                    reply_to_id,
+                    deleted_for_sender,
+                    deleted_for_receiver,
+                    deleted_for_everyone,
+                    edited,
+                    edited_at
+                )
+                VALUES
+                (
+                    ?,
+                    ?,
+                    ?,
+                    'text',
+                    'sent',
+                    ?,
+                    0,
+                    0,
+                    0,
+                    0,
+                    NULL
+                )
+                """,
+                (
+                    sender_id,
+                    receiver_id,
+                    message,
+                    reply_to_id
+                )
+            )
+
+            message_id = cursor.lastrowid
 
         db.commit()
 
@@ -2216,7 +3053,8 @@ def send_message(data):
 
     db = get_db()
 
-    sender = db.execute(
+    sender = db_execute(
+        db,
         """
         SELECT username
         FROM users
@@ -2327,13 +3165,8 @@ def message_delivered(data):
         return
 
     try:
-        message_id = int(
-            data.get("message_id")
-        )
-    except (
-        TypeError,
-        ValueError
-    ):
+        message_id = int(data.get("message_id"))
+    except (TypeError, ValueError):
         print(
             "❌ Invalid delivered message ID:",
             data.get("message_id")
@@ -2343,8 +3176,8 @@ def message_delivered(data):
     db = get_db()
 
     try:
-
-        message = db.execute(
+        message = db_execute(
+            db,
             """
             SELECT
                 id,
@@ -2354,9 +3187,7 @@ def message_delivered(data):
             FROM messages
             WHERE id = ?
             """,
-            (
-                message_id,
-            )
+            (message_id,)
         ).fetchone()
 
         if not message:
@@ -2365,11 +3196,7 @@ def message_delivered(data):
         sender_id = message["sender_id"]
         receiver_id = message["receiver_id"]
 
-        # -----------------------------------------
-        # Only the actual receiver can acknowledge
-        # delivery.
-        # -----------------------------------------
-
+        # Only the receiver can confirm delivery.
         if current_user.id != receiver_id:
             print(
                 "❌ Unauthorized delivery acknowledgment:",
@@ -2379,40 +3206,28 @@ def message_delivered(data):
             )
             return
 
-        # -----------------------------------------
-        # Do not move a message backwards.
-        # -----------------------------------------
-
+        # A seen message is already beyond delivered.
         if message["status"] == "seen":
             return
 
-        db.execute(
+        db_execute(
+            db,
             """
             UPDATE messages
             SET status = 'delivered'
             WHERE id = ?
             AND status = 'sent'
             """,
-            (
-                message_id,
-            )
+            (message_id,)
         )
 
         db.commit()
 
-        # -----------------------------------------
-        # Tell the sender that the message
-        # has been delivered.
-        # -----------------------------------------
-
         socketio.emit(
             "message_status",
             {
-                "message_id":
-                    message_id,
-
-                "status":
-                    "delivered"
+                "message_id": message_id,
+                "status": "delivered"
             },
             room=f"user_{sender_id}"
         )
@@ -2425,16 +3240,13 @@ def message_delivered(data):
         )
 
     except Exception as e:
-
         db.rollback()
-
         print(
             "❌ MESSAGE DELIVERED ERROR:",
             e
         )
 
     finally:
-
         db.close()
 
 # =========================================================
@@ -2448,13 +3260,8 @@ def message_seen(data):
         return
 
     try:
-        message_id = int(
-            data.get("message_id")
-        )
-    except (
-        TypeError,
-        ValueError
-    ):
+        message_id = int(data.get("message_id"))
+    except (TypeError, ValueError):
         print(
             "❌ Invalid seen message ID:",
             data.get("message_id")
@@ -2464,8 +3271,8 @@ def message_seen(data):
     db = get_db()
 
     try:
-
-        message = db.execute(
+        message = db_execute(
+            db,
             """
             SELECT
                 id,
@@ -2475,9 +3282,7 @@ def message_seen(data):
             FROM messages
             WHERE id = ?
             """,
-            (
-                message_id,
-            )
+            (message_id,)
         ).fetchone()
 
         if not message:
@@ -2486,11 +3291,7 @@ def message_seen(data):
         sender_id = message["sender_id"]
         receiver_id = message["receiver_id"]
 
-        # -----------------------------------------
-        # Only the actual receiver can mark a
-        # message as seen.
-        # -----------------------------------------
-
+        # Only the receiver can mark the message as seen.
         if current_user.id != receiver_id:
             print(
                 "❌ Unauthorized seen acknowledgment:",
@@ -2500,40 +3301,27 @@ def message_seen(data):
             )
             return
 
-        # -----------------------------------------
-        # Do not move a message backwards.
-        # -----------------------------------------
-
         if message["status"] == "seen":
             return
 
-        db.execute(
+        db_execute(
+            db,
             """
             UPDATE messages
             SET status = 'seen'
             WHERE id = ?
             AND status IN ('sent', 'delivered')
             """,
-            (
-                message_id,
-            )
+            (message_id,)
         )
 
         db.commit()
 
-        # -----------------------------------------
-        # Tell the sender that the message has
-        # been seen.
-        # -----------------------------------------
-
         socketio.emit(
             "message_status",
             {
-                "message_id":
-                    message_id,
-
-                "status":
-                    "seen"
+                "message_id": message_id,
+                "status": "seen"
             },
             room=f"user_{sender_id}"
         )
@@ -2546,243 +3334,203 @@ def message_seen(data):
         )
 
     except Exception as e:
-
         db.rollback()
-
         print(
             "❌ MESSAGE SEEN ERROR:",
             e
         )
 
     finally:
-
         db.close()
-
 # =========================================================
 # SEND VOICE MESSAGE
 # =========================================================
-
 @socketio.on("send_voice")
 def send_voice(data):
 
     if not current_user.is_authenticated:
-
-        print(
-            "❌ Unauthenticated socket tried to send voice."
-        )
-
         return
 
-    sender_id = current_user.id
-
-    # -----------------------------------------
-    # Receiver
-    # -----------------------------------------
+    receiver_id = data.get("receiver_id")
+    audio_data = data.get("audio")
 
     try:
-
-        receiver_id = int(
-            data.get("receiver_id")
-        )
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
-        print(
-            "❌ Invalid voice receiver:",
-            data.get("receiver_id")
-        )
-
+        receiver_id = int(receiver_id)
+    except (TypeError, ValueError):
+        print("❌ Invalid receiver ID:", receiver_id)
         return
-
-    if sender_id == receiver_id:
-
-        return
-
-    # -----------------------------------------
-    # Audio
-    # -----------------------------------------
-
-    audio_data = data.get(
-        "audio"
-    )
 
     if not audio_data:
-
-        print(
-            "❌ No audio data received."
-        )
-
+        print("❌ No voice audio received.")
         return
 
-    # -----------------------------------------
-    # Reply
-    # -----------------------------------------
+    if receiver_id == current_user.id:
+        print("❌ Cannot send voice message to yourself.")
+        return
 
-    reply_to_id = data.get(
-        "reply_to_id"
-    )
-
-    # -----------------------------------------
-    # Verify receiver + reply
-    # -----------------------------------------
+    # --------------------------------------------------
+    # Verify receiver
+    # --------------------------------------------------
 
     db = get_db()
 
-    receiver = db.execute(
-        """
-        SELECT id
-        FROM users
-        WHERE id = ?
-        """,
-        (
-            receiver_id,
-        )
-    ).fetchone()
-
-    if not receiver:
-
+    try:
+        receiver = db_execute(
+            db,
+            """
+            SELECT id, username
+            FROM users
+            WHERE id = ?
+            """,
+            (receiver_id,)
+        ).fetchone()
+    finally:
         db.close()
 
-        print(
-            "❌ Voice receiver does not exist:",
-            receiver_id
-        )
-
+    if not receiver:
+        print("❌ Voice message receiver not found:", receiver_id)
         return
 
-    (
-        reply_to_id,
-        reply_preview,
-        reply_sender_name
-    ) = get_reply_info(
-        db,
-        reply_to_id,
-        sender_id,
-        receiver_id
-    )
+    # --------------------------------------------------
+    # Reply information
+    # --------------------------------------------------
 
-    db.close()
+    reply_to_id = data.get("reply_to_id")
 
-    # -----------------------------------------
-    # Decode audio
-    # -----------------------------------------
+    db = get_db()
 
     try:
-
-        if "," in audio_data:
-
-            audio_base64 = audio_data.split(
-                ",",
-                1
-            )[1]
-
-        else:
-
-            audio_base64 = audio_data
-
-        audio_bytes = base64.b64decode(
-            audio_base64
+        (
+            reply_message_id,
+            reply_preview,
+            reply_sender_name
+        ) = get_reply_info(
+            db,
+            reply_to_id,
+            current_user.id,
+            receiver_id
         )
+    finally:
+        db.close()
+
+    # --------------------------------------------------
+    # Decode audio
+    # --------------------------------------------------
+
+    try:
+        if "," in audio_data:
+            audio_data = audio_data.split(",", 1)[1]
+
+        audio_bytes = base64.b64decode(audio_data)
 
     except Exception as e:
-
-        print(
-            "❌ Voice decode error:",
-            e
-        )
-
+        print("❌ VOICE DECODE ERROR:", e)
         return
 
-    # -----------------------------------------
-    # File name
-    # -----------------------------------------
+    # --------------------------------------------------
+    # Save audio file
+    # --------------------------------------------------
 
     filename = (
-        f"{sender_id}_"
-        f"{int(datetime.utcnow().timestamp())}_"
-        f"{os.urandom(4).hex()}.webm"
+        f"voice_{current_user.id}_"
+        f"{secrets.token_hex(12)}.webm"
     )
 
-    path = os.path.join(
+    filepath = os.path.join(
         VOICE_FOLDER,
         filename
     )
 
-    # -----------------------------------------
-    # Save audio
-    # -----------------------------------------
-
     try:
-
-        with open(
-            path,
-            "wb"
-        ) as audio_file:
-
-            audio_file.write(
-                audio_bytes
-            )
+        with open(filepath, "wb") as audio_file:
+            audio_file.write(audio_bytes)
 
     except Exception as e:
-
-        print(
-            "❌ Voice save error:",
-            e
-        )
-
+        print("❌ VOICE FILE SAVE ERROR:", e)
         return
 
-    # -----------------------------------------
-    # Save message
-    # -----------------------------------------
+    # URL used by the browser to play the audio.
+    audio_url = url_for(
+        "static",
+        filename=f"uploads/voices/{filename}"
+    )
+
+    # --------------------------------------------------
+    # Save message in database
+    # --------------------------------------------------
 
     db = get_db()
 
     try:
+        if os.getenv("DATABASE_URL"):
 
-        cursor = db.execute(
-            """
-            INSERT INTO messages
-            (
-                sender_id,
-                receiver_id,
-                message,
-                message_type,
-                status,
-                reply_to_id,
-                deleted_for_sender,
-                deleted_for_receiver,
-                deleted_for_everyone,
-                edited,
-                edited_at
+            cursor = db_execute(
+                db,
+                """
+                INSERT INTO messages
+                (
+                    sender_id,
+                    receiver_id,
+                    message,
+                    message_type,
+                    reply_to_id,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                RETURNING id, timestamp
+                """,
+                (
+                    current_user.id,
+                    receiver_id,
+                    audio_url,
+                    "voice",
+                    reply_message_id,
+                    "sent"
+                )
             )
-            VALUES
-            (
-                ?,
-                ?,
-                ?,
-                'voice',
-                'sent',
-                ?,
-                0,
-                0,
-                0,
-                0,
-                NULL
-            )
-            """,
-            (
-                sender_id,
-                receiver_id,
-                filename,
-                reply_to_id
-            )
-        )
 
-        message_id = cursor.lastrowid
+            new_message = cursor.fetchone()
+
+            message_id = new_message["id"]
+            timestamp = new_message["timestamp"]
+
+        else:
+
+            cursor = db_execute(
+                db,
+                """
+                INSERT INTO messages
+                (
+                    sender_id,
+                    receiver_id,
+                    message,
+                    message_type,
+                    reply_to_id,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    current_user.id,
+                    receiver_id,
+                    audio_url,
+                    "voice",
+                    reply_message_id,
+                    "sent"
+                )
+            )
+
+            message_id = cursor.lastrowid
+
+            timestamp = db_execute(
+                db,
+                """
+                SELECT timestamp
+                FROM messages
+                WHERE id = ?
+                """,
+                (message_id,)
+            ).fetchone()["timestamp"]
 
         db.commit()
 
@@ -2791,43 +3539,127 @@ def send_voice(data):
         db.rollback()
 
         print(
-            "❌ Voice database error:",
+            "❌ VOICE MESSAGE DATABASE ERROR:",
             e
         )
 
-        db.close()
-
         return
 
-    db.close()
+    finally:
+        db.close()
 
-    # -----------------------------------------
-    # Audio URL
-    # -----------------------------------------
+    # --------------------------------------------------
+    # Sender information
+    # --------------------------------------------------
 
-    audio_url = url_for(
-        "static",
-        filename=f"uploads/voices/{filename}"
+    db = get_db()
+
+    try:
+        sender = db_execute(
+            db,
+            """
+            SELECT username, profile_image
+            FROM users
+            WHERE id = ?
+            """,
+            (current_user.id,)
+        ).fetchone()
+    finally:
+        db.close()
+
+    sender_name = (
+        sender["username"]
+        if sender
+        else "User"
     )
 
-    # -----------------------------------------
+    sender_profile_image = (
+        sender["profile_image"]
+        if sender
+        else "default.png"
+    )
+
+    # --------------------------------------------------
+    # Message data sent to both clients
+    # --------------------------------------------------
+
+    message_data = {
+        "id": message_id,
+        "sender_id": current_user.id,
+        "receiver_id": receiver_id,
+        "message": audio_url,
+        "message_type": "voice",
+        "timestamp": timestamp.isoformat()
+        if hasattr(timestamp, "isoformat")
+        else str(timestamp),
+        "status": "sent",
+
+        "sender_name": sender_name,
+        "sender_profile_image": sender_profile_image,
+
+        "reply_to_id": reply_message_id,
+        "reply_preview": reply_preview,
+        "reply_sender_name": reply_sender_name
+    }
+
+    # --------------------------------------------------
+    # Send message to sender and receiver
+    # --------------------------------------------------
+
+    socketio.emit(
+        "receive_message",
+        message_data,
+        room=f"user_{current_user.id}"
+    )
+
+    socketio.emit(
+        "receive_message",
+        message_data,
+        room=f"user_{receiver_id}"
+    )
+
+    # --------------------------------------------------
+    # Create notification
+    # --------------------------------------------------
+
+    create_notification(
+        receiver_id,
+        current_user.id,
+        "🎙 Voice message"
+    )
+
+    print(
+        "🎙 Voice message sent:",
+        message_id,
+        "from",
+        current_user.id,
+        "to",
+        receiver_id
+    )
+
+    audio_url = url_for(
+    "static",
+    filename=f"uploads/voices/{filename}"
+)    # -----------------------------------------
     # Sender name
     # -----------------------------------------
 
     db = get_db()
 
-    sender = db.execute(
-        """
-        SELECT username
-        FROM users
-        WHERE id = ?
-        """,
-        (
-            sender_id,
-        )
-    ).fetchone()
-
-    db.close()
+    try:
+        sender = db_execute(
+            db,
+            """
+            SELECT username
+            FROM users
+            WHERE id = ?
+            """,
+            (
+                sender_id,
+            )
+        ).fetchone()
+    finally:
+        db.close()
 
     sender_name = (
         sender["username"]
@@ -2990,12 +3822,11 @@ def delete_message(data):
         # Find message
         # -----------------------------------------
 
-        message = db.execute(
+        message = db_execute(
+            db,
             """
             SELECT *
-
             FROM messages
-
             WHERE id = ?
             """,
             (
@@ -3013,7 +3844,6 @@ def delete_message(data):
             return
 
         sender_id = message["sender_id"]
-
         receiver_id = message["receiver_id"]
 
         # -----------------------------------------
@@ -3039,12 +3869,11 @@ def delete_message(data):
 
             if current_user.id == sender_id:
 
-                db.execute(
+                db_execute(
+                    db,
                     """
                     UPDATE messages
-
                     SET deleted_for_sender = 1
-
                     WHERE id = ?
                     """,
                     (
@@ -3054,12 +3883,11 @@ def delete_message(data):
 
             else:
 
-                db.execute(
+                db_execute(
+                    db,
                     """
                     UPDATE messages
-
                     SET deleted_for_receiver = 1
-
                     WHERE id = ?
                     """,
                     (
@@ -3106,14 +3934,13 @@ def delete_message(data):
 
             return
 
-        db.execute(
+        db_execute(
+            db,
             """
             UPDATE messages
-
             SET
                 deleted_for_everyone = 1,
                 message = 'This message was deleted'
-
             WHERE id = ?
             """,
             (
@@ -3183,7 +4010,7 @@ def delete_message(data):
         db.close()
 
 
-## =========================================================
+# =========================================================
 # PHASE 2.3 — EDIT MESSAGE
 # =========================================================
 
@@ -3275,7 +4102,8 @@ def edit_message(data):
         # Find message
         # -----------------------------------------
 
-        message = db.execute(
+        message = db_execute(
+            db,
             """
             SELECT
                 id,
@@ -3306,7 +4134,6 @@ def edit_message(data):
         # -----------------------------------------
 
         sender_id = message["sender_id"]
-
         receiver_id = message["receiver_id"]
 
         # -----------------------------------------
@@ -3358,15 +4185,14 @@ def edit_message(data):
         # Update database
         # -----------------------------------------
 
-        db.execute(
+        db_execute(
+            db,
             """
             UPDATE messages
-
             SET
                 message = ?,
                 edited = 1,
                 edited_at = ?
-
             WHERE id = ?
             """,
             (
@@ -3453,6 +4279,7 @@ def edit_message(data):
 
         db.close()
 
+
 # =========================================================
 # AUDIO CALL
 # =========================================================
@@ -3478,7 +4305,6 @@ def call_user(data):
 
     emit(
         "incoming_call",
-
         {
             "from":
                 current_user.id,
@@ -3486,7 +4312,6 @@ def call_user(data):
             "offer":
                 offer
         },
-
         room=f"user_{target}"
     )
 
@@ -3516,12 +4341,10 @@ def call_accepted(data):
 
     emit(
         "call_accepted",
-
         {
             "answer":
                 answer
         },
-
         room=f"user_{target}"
     )
 
@@ -3551,12 +4374,10 @@ def ice_candidate(data):
 
     emit(
         "ice_candidate",
-
         {
             "candidate":
                 candidate
         },
-
         room=f"user_{target}"
     )
 
@@ -3582,7 +4403,6 @@ def end_call(data):
 
     emit(
         "call_ended",
-
         room=f"user_{target}"
     )
 
