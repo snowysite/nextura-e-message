@@ -1,44 +1,1345 @@
+cat > templates/signup.html <<'EOF'
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Signup | Nextura-E-Message</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <title>Create Account | Nextura-E-Message</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet"
+    >
+
+    <style>
+        :root {
+            --nextura-orange: #ff4500;
+            --nextura-orange-dark: #d93600;
+            --nextura-black: #151515;
+            --nextura-card: #1d1d1d;
+            --nextura-card-2: #232323;
+            --nextura-border: rgba(255,255,255,0.08);
+            --nextura-text: #f5f5f5;
+            --nextura-muted: #9b9b9b;
+            --nextura-green: #22c55e;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", sans-serif;
+            background:
+                radial-gradient(
+                    circle at top left,
+                    rgba(255, 69, 0, 0.14),
+                    transparent 32%
+                ),
+                radial-gradient(
+                    circle at bottom right,
+                    rgba(255, 69, 0, 0.08),
+                    transparent 30%
+                ),
+                var(--nextura-black);
+            color: var(--nextura-text);
+        }
+
+        .auth-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* =========================================
+           NAVBAR
+        ========================================= */
+
+        .auth-navbar {
+            height: 76px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--nextura-border);
+            background: rgba(21, 21, 21, 0.88);
+            backdrop-filter: blur(14px);
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
+            text-decoration: none;
+        }
+
+        .brand img {
+            width: 38px;
+            height: 38px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .brand-name {
+            color: var(--nextura-orange);
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+        }
+
+        .nav-login {
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
+            border-radius: 10px;
+            padding: 9px 16px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: 0.2s ease;
+        }
+
+        .nav-login:hover {
+            color: #fff;
+            border-color: var(--nextura-orange);
+            background: rgba(255,69,0,0.10);
+        }
+
+        /* =========================================
+           MAIN
+        ========================================= */
+
+        .auth-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 45px 20px;
+        }
+
+        .auth-wrapper {
+            width: 100%;
+            max-width: 1040px;
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr;
+            gap: 45px;
+            align-items: center;
+        }
+
+        /* =========================================
+           LEFT SIDE
+        ========================================= */
+
+        .intro {
+            padding: 20px;
+        }
+
+        .intro-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 13px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,69,0,0.25);
+            background: rgba(255,69,0,0.08);
+            color: #ff8a63;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 22px;
+        }
+
+        .intro-badge i {
+            color: var(--nextura-orange);
+        }
+
+        .intro h1 {
+            font-size: clamp(36px, 5vw, 58px);
+            line-height: 1.02;
+            letter-spacing: -2.5px;
+            font-weight: 850;
+            margin-bottom: 20px;
+        }
+
+        .intro h1 span {
+            color: var(--nextura-orange);
+        }
+
+        .intro p {
+            color: var(--nextura-muted);
+            font-size: 16px;
+            line-height: 1.7;
+            max-width: 470px;
+        }
+
+        .feature-list {
+            margin-top: 30px;
+            display: grid;
+            gap: 15px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            color: #d8d8d8;
+            font-size: 14px;
+        }
+
+        .feature-icon {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 10px;
+            background: rgba(255,69,0,0.10);
+            color: var(--nextura-orange);
+        }
+
+        /* =========================================
+           CARD
+        ========================================= */
+
+        .auth-card {
+            width: 100%;
+            background: rgba(29,29,29,0.94);
+            border: 1px solid var(--nextura-border);
+            border-radius: 22px;
+            padding: 34px;
+            box-shadow:
+                0 25px 70px rgba(0,0,0,0.45),
+                0 0 0 1px rgba(255,255,255,0.015);
+        }
+
+        .card-heading {
+            margin-bottom: 26px;
+        }
+
+        .card-heading h2 {
+            font-size: 27px;
+            font-weight: 800;
+            margin-bottom: 7px;
+        }
+
+        .card-heading p {
+            margin: 0;
+            color: var(--nextura-muted);
+            font-size: 14px;
+        }
+
+        /* =========================================
+           FLASH MESSAGES
+        ========================================= */
+
+        .flash-container {
+            margin-bottom: 20px;
+        }
+
+        .flash-message {
+            border: 1px solid rgba(255,69,0,0.25);
+            background: rgba(255,69,0,0.09);
+            color: #ffb199;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        /* =========================================
+           FORM
+        ========================================= */
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            color: #ddd;
+            font-size: 13px;
+            font-weight: 650;
+            margin-bottom: 8px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #777;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .form-control-nextura {
+            width: 100%;
+            height: 49px;
+            padding: 0 45px 0 43px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.09);
+            background: var(--nextura-card-2);
+            color: #fff;
+            outline: none;
+            transition: 0.2s ease;
+        }
+
+        .form-control-nextura::placeholder {
+            color: #666;
+        }
+
+        .form-control-nextura:focus {
+            border-color: var(--nextura-orange);
+            background: #282828;
+            box-shadow: 0 0 0 3px rgba(255,69,0,0.10);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: #777;
+            padding: 5px;
+            cursor: pointer;
+            z-index: 3;
+        }
+
+        .password-toggle:hover {
+            color: #fff;
+        }
+
+        /* =========================================
+           PASSWORD STRENGTH
+        ========================================= */
+
+        .strength-container {
+            margin-top: 10px;
+        }
+
+        .strength-bars {
+            display: flex;
+            gap: 5px;
+        }
+
+        .strength-bar {
+            height: 4px;
+            flex: 1;
+            border-radius: 10px;
+            background: #343434;
+            transition: 0.25s ease;
+        }
+
+        .strength-text {
+            margin-top: 7px;
+            color: #777;
+            font-size: 11px;
+        }
+
+        /* =========================================
+           REQUIREMENTS
+        ========================================= */
+
+        .requirements {
+            margin-top: 12px;
+            padding: 13px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .requirements-title {
+            color: #aaa;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 9px;
+        }
+
+        .requirement-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+        }
+
+        .requirement {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: #777;
+            font-size: 11px;
+            transition: 0.2s ease;
+        }
+
+        .requirement i {
+            font-size: 11px;
+        }
+
+        .requirement.valid {
+            color: var(--nextura-green);
+        }
+
+        /* =========================================
+           SUBMIT
+        ========================================= */
+
+        .signup-btn {
+            width: 100%;
+            height: 51px;
+            margin-top: 22px;
+            border: 0;
+            border-radius: 12px;
+            background: var(--nextura-orange);
+            color: #fff;
+            font-weight: 750;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            transition: 0.2s ease;
+        }
+
+        .signup-btn:hover {
+            background: var(--nextura-orange-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 25px rgba(255,69,0,0.20);
+        }
+
+        .signup-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-text {
+            text-align: center;
+            color: var(--nextura-muted);
+            font-size: 13px;
+            margin: 21px 0 0;
+        }
+
+        .login-text a {
+            color: var(--nextura-orange);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .login-text a:hover {
+            text-decoration: underline;
+        }
+
+        /* =========================================
+           FOOTER
+        ========================================= */
+
+        .auth-footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+            font-size: 11px;
+        }
+
+        /* =========================================
+           RESPONSIVE
+        ========================================= */
+
+        @media (max-width: 850px) {
+            .auth-wrapper {
+                grid-template-columns: 1fr;
+                max-width: 560px;
+            }
+
+            .intro {
+                text-align: center;
+                padding: 0 10px;
+            }
+
+            .intro p {
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .feature-list {
+                display: none;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .auth-navbar {
+                height: 68px;
+            }
+
+            .brand-name {
+                font-size: 16px;
+            }
+
+            .brand img {
+                width: 34px;
+                height: 34px;
+            }
+
+            .nav-login {
+                padding: 8px 11px;
+                font-size: 12px;
+            }
+
+            .auth-main {
+                padding: 30px 14px;
+            }
+
+            .intro h1 {
+                font-size: 38px;
+            }
+
+            .intro p {
+                font-size: 14px;
+            }
+
+            .auth-card {
+                padding: 24px 18px;
+                border-radius: 18px;
+            }
+
+            .requirement-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark" style="background-color:#151515;">
-    <div class="container">
-        <a class="navbar-brand d-flex align-items-center" href="/dashboard">
-            <img src="{{ url_for('static', filename='images/WhatsApp Image 2026-01-15 at 7.21.47 PM.jpeg') }}"
-                 width="30" height="30" class="me-2">
-            <span style="color:#ff4500; font-weight:bold;">Nextura-E-Message</span>
-        </a>
-        <div class="ms-auto d-flex align-items-center">
-            <span id="status-dot" class="me-3" style="width:12px; height:12px; border-radius:50%; display:inline-block; background-color:gray;"></span>
-            <span id="status-text" class="me-3">Offline</span>
-            <a href="/logout" class="btn btn-outline-warning btn-sm">Logout</a>
+
+<body>
+
+<div class="auth-page">
+
+    <!-- =========================================
+         NAVBAR
+    ========================================== -->
+
+    <nav class="auth-navbar">
+        <div class="container-fluid px-3 px-md-4">
+
+            <div class="d-flex align-items-center justify-content-between">
+
+                <a href="/login" class="brand">
+
+                    <img
+                        src="{{ url_for(
+                            'static',
+                            filename='images/WhatsApp Image 2026-01-15 at 7.21.47 PM.jpeg'
+                        ) }}"
+                        alt="Nextura"
+                    >
+
+                    <span class="brand-name">
+                        Nextura-E-Message
+                    </span>
+
+                </a>
+
+                <a href="/login" class="nav-login">
+                    Sign in
+                </a>
+
+            </div>
+
         </div>
-    </div>
-</nav>
+    </nav>
 
-<div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="card p-4 shadow" style="width: 100%; max-width: 400px;">
-        <h3 class="text-center mb-3">Create Account</h3>
 
-        <form method="POST">
-            <input class="form-control mb-3" name="username" placeholder="Username" required>
-            <input class="form-control mb-3" type="email" name="email" placeholder="Email" required>
-            <input class="form-control mb-3" type="password" name="password" placeholder="Password" required>
+    <!-- =========================================
+         MAIN
+    ========================================== -->
 
-            <button class="btn btn-primary w-100">Sign Up</button>
-        </form>
+    <main class="auth-main">
 
-        <p class="text-center mt-3">
-            Already have an account? <a href="/login">Login</a>
-        </p>
-    </div>
+        <div class="auth-wrapper">
+
+            <!-- LEFT INTRO -->
+
+            <section class="intro">
+
+                <div class="intro-badge">
+                    <i class="bi bi-stars"></i>
+                    NEXTURA MESSAGING
+                </div>
+
+                <h1>
+                    Connect.
+                    <span>Chat.</span>
+                    Stay close.
+                </h1>
+
+                <p>
+                    Create your Nextura account and start connecting
+                    with people through a fast, modern messaging
+                    experience.
+                </p>
+
+                <div class="feature-list">
+
+                    <div class="feature">
+
+                        <div class="feature-icon">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+
+                        <span>
+                            Secure password protection
+                        </span>
+
+                    </div>
+
+                    <div class="feature">
+
+                        <div class="feature-icon">
+                            <i class="bi bi-chat-dots"></i>
+                        </div>
+
+                        <span>
+                            Real-time conversations
+                        </span>
+
+                    </div>
+
+                    <div class="feature">
+
+                        <div class="feature-icon">
+                            <i class="bi bi-phone"></i>
+                        </div>
+
+                        <span>
+                            Built for desktop and mobile
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- SIGNUP CARD -->
+
+            <section class="auth-card">
+
+                <div class="card-heading">
+
+                    <h2>
+                        Create your account
+                    </h2>
+
+                    <p>
+                        Join Nextura-E-Message in a few seconds.
+                    </p>
+
+                </div>
+
+
+                <!-- FLASH MESSAGES -->
+
+                {% with messages = get_flashed_messages() %}
+
+                    {% if messages %}
+
+                        <div class="flash-container">
+
+                            {% for message in messages %}
+
+                                <div class="flash-message">
+
+                                    <i class="bi bi-info-circle-fill"></i>
+
+                                    <span>
+                                        {{ message }}
+                                    </span>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    {% endif %}
+
+                {% endwith %}
+
+
+                <!-- FORM -->
+
+                <form
+                    method="POST"
+                    id="signup-form"
+                    novalidate
+                >
+
+                    <!-- USERNAME -->
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="username"
+                        >
+                            Username
+                        </label>
+
+                        <div class="input-wrapper">
+
+                            <i class="bi bi-person input-icon"></i>
+
+                            <input
+                                id="username"
+                                class="form-control-nextura"
+                                type="text"
+                                name="username"
+                                placeholder="Choose a username"
+                                minlength="3"
+                                maxlength="30"
+                                autocomplete="username"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- EMAIL -->
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="email"
+                        >
+                            Email address
+                        </label>
+
+                        <div class="input-wrapper">
+
+                            <i class="bi bi-envelope input-icon"></i>
+
+                            <input
+                                id="email"
+                                class="form-control-nextura"
+                                type="email"
+                                name="email"
+                                placeholder="you@example.com"
+                                autocomplete="email"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- PASSWORD -->
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="password"
+                        >
+                            Password
+                        </label>
+
+                        <div class="input-wrapper">
+
+                            <i class="bi bi-lock input-icon"></i>
+
+                            <input
+                                id="password"
+                                class="form-control-nextura"
+                                type="password"
+                                name="password"
+                                placeholder="Create a strong password"
+                                autocomplete="new-password"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                data-target="password"
+                                aria-label="Show password"
+                            >
+                                <i class="bi bi-eye"></i>
+                            </button>
+
+                        </div>
+
+
+                        <!-- STRENGTH -->
+
+                        <div class="strength-container">
+
+                            <div class="strength-bars">
+
+                                <div
+                                    class="strength-bar"
+                                    id="strength-1"
+                                ></div>
+
+                                <div
+                                    class="strength-bar"
+                                    id="strength-2"
+                                ></div>
+
+                                <div
+                                    class="strength-bar"
+                                    id="strength-3"
+                                ></div>
+
+                                <div
+                                    class="strength-bar"
+                                    id="strength-4"
+                                ></div>
+
+                            </div>
+
+                            <div
+                                class="strength-text"
+                                id="strength-text"
+                            >
+                                Enter a password
+                            </div>
+
+                        </div>
+
+
+                        <!-- REQUIREMENTS -->
+
+                        <div class="requirements">
+
+                            <div class="requirements-title">
+                                Password requirements
+                            </div>
+
+                            <div class="requirement-list">
+
+                                <div
+                                    class="requirement"
+                                    id="req-length"
+                                >
+                                    <i class="bi bi-circle"></i>
+                                    <span>8+ characters</span>
+                                </div>
+
+                                <div
+                                    class="requirement"
+                                    id="req-upper"
+                                >
+                                    <i class="bi bi-circle"></i>
+                                    <span>Uppercase letter</span>
+                                </div>
+
+                                <div
+                                    class="requirement"
+                                    id="req-lower"
+                                >
+                                    <i class="bi bi-circle"></i>
+                                    <span>Lowercase letter</span>
+                                </div>
+
+                                <div
+                                    class="requirement"
+                                    id="req-number"
+                                >
+                                    <i class="bi bi-circle"></i>
+                                    <span>Number</span>
+                                </div>
+
+                                <div
+                                    class="requirement"
+                                    id="req-special"
+                                >
+                                    <i class="bi bi-circle"></i>
+                                    <span>Special character</span>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- CONFIRM PASSWORD -->
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="confirm_password"
+                        >
+                            Confirm password
+                        </label>
+
+                        <div class="input-wrapper">
+
+                            <i class="bi bi-shield-lock input-icon"></i>
+
+                            <input
+                                id="confirm_password"
+                                class="form-control-nextura"
+                                type="password"
+                                name="confirm_password"
+                                placeholder="Repeat your password"
+                                autocomplete="new-password"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                data-target="confirm_password"
+                                aria-label="Show password"
+                            >
+                                <i class="bi bi-eye"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SUBMIT -->
+
+                    <button
+                        type="submit"
+                        class="signup-btn"
+                        id="signup-btn"
+                    >
+
+                        <i class="bi bi-person-plus"></i>
+
+                        <span id="signup-btn-text">
+                            Create account
+                        </span>
+
+                    </button>
+
+                </form>
+
+
+                <p class="login-text">
+                    Already have an account?
+                    <a href="/login">
+                        Sign in
+                    </a>
+                </p>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <footer class="auth-footer">
+        © 2026 Nextura-E-Message · Built for better conversations.
+    </footer>
+
 </div>
+
+
+<script>
+
+    /* =========================================
+       PASSWORD SHOW / HIDE
+    ========================================== */
+
+    document.querySelectorAll(".password-toggle").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const targetId = button.dataset.target;
+            const input = document.getElementById(targetId);
+            const icon = button.querySelector("i");
+
+            if (input.type === "password") {
+
+                input.type = "text";
+
+                icon.classList.remove("bi-eye");
+                icon.classList.add("bi-eye-slash");
+
+                button.setAttribute(
+                    "aria-label",
+                    "Hide password"
+                );
+
+            } else {
+
+                input.type = "password";
+
+                icon.classList.remove("bi-eye-slash");
+                icon.classList.add("bi-eye");
+
+                button.setAttribute(
+                    "aria-label",
+                    "Show password"
+                );
+
+            }
+
+        });
+
+    });
+
+
+    /* =========================================
+       PASSWORD REQUIREMENTS
+    ========================================== */
+
+    const passwordInput =
+        document.getElementById("password");
+
+    const confirmInput =
+        document.getElementById("confirm_password");
+
+
+    function updateRequirement(
+        elementId,
+        valid
+    ) {
+
+        const element =
+            document.getElementById(elementId);
+
+        const icon =
+            element.querySelector("i");
+
+        if (valid) {
+
+            element.classList.add("valid");
+
+            icon.classList.remove(
+                "bi-circle"
+            );
+
+            icon.classList.add(
+                "bi-check-circle-fill"
+            );
+
+        } else {
+
+            element.classList.remove("valid");
+
+            icon.classList.remove(
+                "bi-check-circle-fill"
+            );
+
+            icon.classList.add(
+                "bi-circle"
+            );
+
+        }
+
+    }
+
+
+    /* =========================================
+       PASSWORD STRENGTH
+    ========================================== */
+
+    function updatePasswordStrength() {
+
+        const password =
+            passwordInput.value;
+
+        const length =
+            password.length >= 8;
+
+        const upper =
+            /[A-Z]/.test(password);
+
+        const lower =
+            /[a-z]/.test(password);
+
+        const number =
+            /[0-9]/.test(password);
+
+        const special =
+            /[^A-Za-z0-9]/.test(password);
+
+
+        updateRequirement(
+            "req-length",
+            length
+        );
+
+        updateRequirement(
+            "req-upper",
+            upper
+        );
+
+        updateRequirement(
+            "req-lower",
+            lower
+        );
+
+        updateRequirement(
+            "req-number",
+            number
+        );
+
+        updateRequirement(
+            "req-special",
+            special
+        );
+
+
+        let score = 0;
+
+        if (length) score++;
+        if (upper) score++;
+        if (lower) score++;
+        if (number) score++;
+        if (special) score++;
+
+
+        const bars = [
+            document.getElementById("strength-1"),
+            document.getElementById("strength-2"),
+            document.getElementById("strength-3"),
+            document.getElementById("strength-4")
+        ];
+
+        const strengthText =
+            document.getElementById("strength-text");
+
+
+        bars.forEach(bar => {
+
+            bar.style.background =
+                "#343434";
+
+        });
+
+
+        if (!password) {
+
+            strengthText.textContent =
+                "Enter a password";
+
+            strengthText.style.color =
+                "#777";
+
+            return;
+
+        }
+
+
+        if (score <= 2) {
+
+            bars[0].style.background =
+                "#ef4444";
+
+            strengthText.textContent =
+                "Weak password";
+
+            strengthText.style.color =
+                "#ef4444";
+
+        } else if (score === 3) {
+
+            bars[0].style.background =
+                "#f59e0b";
+
+            bars[1].style.background =
+                "#f59e0b";
+
+            strengthText.textContent =
+                "Fair password";
+
+            strengthText.style.color =
+                "#f59e0b";
+
+        } else if (score === 4) {
+
+            bars[0].style.background =
+                "#84cc16";
+
+            bars[1].style.background =
+                "#84cc16";
+
+            bars[2].style.background =
+                "#84cc16";
+
+            strengthText.textContent =
+                "Good password";
+
+            strengthText.style.color =
+                "#84cc16";
+
+        } else {
+
+            bars.forEach(bar => {
+
+                bar.style.background =
+                    "#22c55e";
+
+            });
+
+            strengthText.textContent =
+                "Strong password";
+
+            strengthText.style.color =
+                "#22c55e";
+
+        }
+
+    }
+
+
+    passwordInput.addEventListener(
+        "input",
+        updatePasswordStrength
+    );
+
+
+    /* =========================================
+       FORM SUBMIT
+    ========================================== */
+
+    const signupForm =
+        document.getElementById("signup-form");
+
+    const signupButton =
+        document.getElementById("signup-btn");
+
+    const signupButtonText =
+        document.getElementById("signup-btn-text");
+
+
+    signupForm.addEventListener(
+        "submit",
+        function(event) {
+
+            const username =
+                document.getElementById("username").value.trim();
+
+            const email =
+                document.getElementById("email").value.trim();
+
+            const password =
+                passwordInput.value;
+
+            const confirmPassword =
+                confirmInput.value;
+
+
+            /* Username */
+
+            if (
+                username.length < 3 ||
+                username.length > 30 ||
+                !/^[A-Za-z0-9_]+$/.test(username)
+            ) {
+
+                event.preventDefault();
+
+                alert(
+                    "Username must be 3-30 characters and contain only letters, numbers, and underscores."
+                );
+
+                return;
+
+            }
+
+
+            /* Email */
+
+            if (
+                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+            ) {
+
+                event.preventDefault();
+
+                alert(
+                    "Please enter a valid email address."
+                );
+
+                return;
+
+            }
+
+
+            /* Password */
+
+            const validPassword =
+                password.length >= 8 &&
+                /[A-Z]/.test(password) &&
+                /[a-z]/.test(password) &&
+                /[0-9]/.test(password) &&
+                /[^A-Za-z0-9]/.test(password);
+
+
+            if (!validPassword) {
+
+                event.preventDefault();
+
+                alert(
+                    "Please meet all password requirements."
+                );
+
+                return;
+
+            }
+
+
+            /* Confirm password */
+
+            if (
+                password !== confirmPassword
+            ) {
+
+                event.preventDefault();
+
+                alert(
+                    "Passwords do not match."
+                );
+
+                return;
+
+            }
+
+
+            /* Loading state */
+
+            signupButton.disabled = true;
+
+            signupButtonText.textContent =
+                "Creating account...";
+
+            signupButton.querySelector("i")
+                .className =
+                "bi bi-arrow-repeat";
+
+        }
+    );
+
+</script>
 
 </body>
 </html>
+EOF

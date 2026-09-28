@@ -1,3 +1,9 @@
+import re
+import smtplib
+from email.message import EmailMessage
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import (
     Flask,
     render_template,
@@ -28,11 +34,12 @@ from werkzeug.security import (
     check_password_hash
 )
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import sqlite3
 import os
 import base64
+import secrets
 
 
 # =========================================================
@@ -297,6 +304,57 @@ def init_db():
 
         message_column_names.append(
             "edited_at"
+        )
+
+    # =====================================================
+    # PASSWORD RESET MIGRATIONS
+    # =====================================================
+
+    user_columns = db.execute(
+        "PRAGMA table_info(users)"
+    ).fetchall()
+
+    user_column_names = [
+        column["name"]
+        for column in user_columns
+    ]
+
+    # -----------------------------------------------------
+    # PASSWORD RESET TOKEN
+    # -----------------------------------------------------
+
+    if "reset_token" not in user_column_names:
+
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN reset_token TEXT
+        """)
+
+        print(
+            "✅ Added reset_token column."
+        )
+
+        user_column_names.append(
+            "reset_token"
+        )
+
+    # -----------------------------------------------------
+    # PASSWORD RESET TOKEN EXPIRY
+    # -----------------------------------------------------
+
+    if "reset_token_expires" not in user_column_names:
+
+        db.execute("""
+            ALTER TABLE users
+            ADD COLUMN reset_token_expires DATETIME
+        """)
+
+        print(
+            "✅ Added reset_token_expires column."
+        )
+
+        user_column_names.append(
+            "reset_token_expires"
         )
 
     db.commit()
@@ -654,10 +712,143 @@ def signup():
             ""
         )
 
-        if not username or not email or not password:
+        confirm_password = request.form.get(
+            "confirm_password",
+            ""
+        )
+
+        # -------------------------------------------------
+        # BASIC VALIDATION
+        # -------------------------------------------------
+
+        if not username or not email or not password or not confirm_password:
 
             flash(
-                "Please fill in all fields."
+                "Please complete all registration fields."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        # -------------------------------------------------
+        # USERNAME VALIDATION
+        # -------------------------------------------------
+
+        if len(username) < 3 or len(username) > 30:
+
+            flash(
+                "Username must be between 3 and 30 characters."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        if not re.fullmatch(
+            r"[A-Za-z0-9_]+",
+            username
+        ):
+
+            flash(
+                "Username can only contain letters, numbers, and underscores."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        # -------------------------------------------------
+        # EMAIL VALIDATION
+        # -------------------------------------------------
+
+        if not re.fullmatch(
+            r"^[^\s@]+@[^\s@]+\.[^\s@]+$",
+            email
+        ):
+
+            flash(
+                "Please enter a valid email address."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        # -------------------------------------------------
+        # PASSWORD VALIDATION
+        # -------------------------------------------------
+
+        if len(password) < 8:
+
+            flash(
+                "Password must be at least 8 characters long."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        if not re.search(
+            r"[A-Z]",
+            password
+        ):
+
+            flash(
+                "Password must contain at least one uppercase letter."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        if not re.search(
+            r"[a-z]",
+            password
+        ):
+
+            flash(
+                "Password must contain at least one lowercase letter."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        if not re.search(
+            r"[0-9]",
+            password
+        ):
+
+            flash(
+                "Password must contain at least one number."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        if not re.search(
+            r"[^A-Za-z0-9]",
+            password
+        ):
+
+            flash(
+                "Password must contain at least one special character."
+            )
+
+            return render_template(
+                "signup.html"
+            )
+
+        # -------------------------------------------------
+        # CONFIRM PASSWORD
+        # -------------------------------------------------
+
+        if password != confirm_password:
+
+            flash(
+                "Passwords do not match."
             )
 
             return render_template(
@@ -667,6 +858,46 @@ def signup():
         db = get_db()
 
         try:
+
+            # -------------------------------------------------
+            # CHECK FOR EXISTING ACCOUNT
+            # -------------------------------------------------
+
+            existing_user = db.execute(
+                """
+                SELECT id
+                FROM users
+                WHERE username = ?
+                   OR email = ?
+                LIMIT 1
+                """,
+                (
+                    username,
+                    email
+                )
+            ).fetchone()
+
+            if existing_user:
+
+                flash(
+                    "Username or email already exists."
+                )
+
+                return render_template(
+                    "signup.html"
+                )
+
+            # -------------------------------------------------
+            # CREATE ACCOUNT
+            #
+            # Password is NEVER stored directly.
+            # generate_password_hash() creates the secure
+            # password hash stored in the database.
+            # -------------------------------------------------
+
+            password_hash = generate_password_hash(
+                password
+            )
 
             db.execute(
                 """
@@ -680,12 +911,8 @@ def signup():
                 """,
                 (
                     username,
-
                     email,
-
-                    generate_password_hash(
-                        password
-                    )
+                    password_hash
                 )
             )
 
@@ -701,11 +928,15 @@ def signup():
 
         except sqlite3.IntegrityError:
 
+            db.rollback()
+
             flash(
                 "Username or email already exists."
             )
 
         except Exception as e:
+
+            db.rollback()
 
             print(
                 "Signup error:",
@@ -788,6 +1019,372 @@ def login():
     return render_template(
         "login.html"
     )
+
+def send_password_reset_email(recipient_email, reset_link):
+    mail_server = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    mail_port = int(os.getenv("MAIL_PORT", "587"))
+    mail_username = os.getenv("MAIL_USERNAME")
+    mail_password = os.getenv("MAIL_PASSWORD")
+    mail_from = os.getenv("MAIL_FROM", mail_username)
+
+    if not mail_username or not mail_password:
+        raise RuntimeError("Email configuration is missing from .env")
+
+    msg = EmailMessage()
+    msg["Subject"] = "Reset your Nextura-E-Message password"
+    msg["From"] = mail_from
+    msg["To"] = recipient_email
+
+    msg.set_content(
+        f"""Hello,
+
+We received a request to reset your Nextura-E-Message password.
+
+Click the link below to create a new password:
+
+{reset_link}
+
+This link will expire in 30 minutes.
+
+If you did not request a password reset, you can safely ignore this email.
+
+Regards,
+Nextura-E-Message
+"""
+    )
+
+    with smtplib.SMTP(mail_server, mail_port, timeout=30) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(mail_username, mail_password)
+        server.send_message(msg)
+
+# =========================================================
+# FORGOT PASSWORD
+# =========================================================
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+
+    if request.method == "POST":
+
+        email = request.form.get(
+            "email",
+            ""
+        ).strip().lower()
+
+        # Always show the same message so users
+        # cannot discover which emails are registered.
+        generic_message = (
+            "If an account exists for that email, "
+            "a password reset link has been sent."
+        )
+
+        if not email:
+
+            flash(generic_message)
+
+            return redirect(
+                url_for("forgot_password")
+            )
+
+        db = get_db()
+
+        try:
+
+            user = db.execute(
+                """
+                SELECT id, email
+                FROM users
+                WHERE LOWER(email) = ?
+                """,
+                (email,)
+            ).fetchone()
+
+            if user:
+
+                reset_token = secrets.token_urlsafe(48)
+
+                expires_at = (
+                    datetime.utcnow()
+                    + timedelta(minutes=30)
+                ).isoformat()
+
+                db.execute(
+                    """
+                    UPDATE users
+                    SET reset_token = ?,
+                        reset_token_expires = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        reset_token,
+                        expires_at,
+                        user["id"]
+                    )
+                )
+
+                db.commit()
+
+                               # Create the password reset link.
+                reset_link = url_for(
+                    "reset_password",
+                    token=reset_token,
+                    _external=True
+                )
+
+                # Send the reset link by email.
+                try:
+                    send_password_reset_email(
+                        user["email"],
+                        reset_link
+                    )
+
+                except Exception as email_error:
+                    print(
+                        "Password reset email error:",
+                        email_error
+                    )
+
+        except Exception as e:
+
+            db.rollback()
+
+            print(
+                "Forgot password error:",
+                e
+            )
+
+        finally:
+
+            db.close()
+
+        flash(generic_message)
+
+        return redirect(
+            url_for("forgot_password")
+        )
+
+    return render_template(
+        "forgot_password.html"
+    )
+
+
+# =========================================================
+# RESET PASSWORD
+# =========================================================
+
+@app.route(
+    "/reset-password/<token>",
+    methods=["GET", "POST"]
+)
+def reset_password(token):
+
+    db = get_db()
+
+    try:
+
+        user = db.execute(
+            """
+            SELECT id, email, reset_token,
+                   reset_token_expires
+            FROM users
+            WHERE reset_token = ?
+            """,
+            (token,)
+        ).fetchone()
+
+        # Invalid or already-used token.
+        if not user:
+
+            flash(
+                "This password reset link is invalid or has already been used."
+            )
+
+            return redirect(
+                url_for("login")
+            )
+
+        # Check expiration.
+        try:
+
+            expires_at = datetime.fromisoformat(
+                user["reset_token_expires"]
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            flash(
+                "This password reset link is invalid or has expired."
+            )
+
+            return redirect(
+                url_for("login")
+            )
+
+        if datetime.utcnow() > expires_at:
+
+            db.execute(
+                """
+                UPDATE users
+                SET reset_token = NULL,
+                    reset_token_expires = NULL
+                WHERE id = ?
+                """,
+                (user["id"],)
+            )
+
+            db.commit()
+
+            flash(
+                "This password reset link has expired. Please request a new one."
+            )
+
+            return redirect(
+                url_for("forgot_password")
+            )
+
+        if request.method == "POST":
+
+            password = request.form.get(
+                "password",
+                ""
+            )
+
+            confirm_password = request.form.get(
+                "confirm_password",
+                ""
+            )
+
+            # Password validation
+            if len(password) < 8:
+
+                flash(
+                    "Password must be at least 8 characters."
+                )
+
+                return render_template(
+                    "reset_password.html"
+                )
+
+            if not re.search(
+                r"[A-Z]",
+                password
+            ):
+
+                flash(
+                    "Password must contain at least one uppercase letter."
+                )
+
+                return render_template(
+                    "reset_password.html"
+                )
+
+            if not re.search(
+                r"[a-z]",
+                password
+            ):
+
+                flash(
+                    "Password must contain at least one lowercase letter."
+                )
+
+                return render_template(
+                    "reset_password.html"
+                )
+
+            if not re.search(
+                r"\d",
+                password
+            ):
+
+                flash(
+                    "Password must contain at least one number."
+                )
+
+                return render_template(
+                    "reset_password.html"
+                )
+
+            if not re.search(
+                r"[^A-Za-z0-9]",
+                password
+            ):
+
+                flash(
+                    "Password must contain at least one special character."
+                )
+
+                return render_template(
+                    "reset_password.html"
+                )
+
+            if password != confirm_password:
+
+                flash(
+                    "Passwords do not match."
+                )
+
+                return render_template(
+                    "reset_password.html"
+                )
+
+            password_hash = generate_password_hash(
+                password
+            )
+
+            db.execute(
+                """
+                UPDATE users
+                SET password = ?,
+                    reset_token = NULL,
+                    reset_token_expires = NULL
+                WHERE id = ?
+                """,
+                (
+                    password_hash,
+                    user["id"]
+                )
+            )
+
+            db.commit()
+
+            flash(
+                "Your password has been reset successfully. You can now login."
+            )
+
+            return redirect(
+                url_for("login")
+            )
+
+        return render_template(
+            "reset_password.html"
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "Reset password error:",
+            e
+        )
+
+        flash(
+            "Something went wrong. Please request a new password reset link."
+        )
+
+        return redirect(
+            url_for("forgot_password")
+        )
+
+    finally:
+
+        db.close()
 
 
 # =========================================================
