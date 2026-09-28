@@ -821,8 +821,211 @@ def dashboard():
 
 
 # =========================================================
+# DASHBOARD DATA API
+# =========================================================
+
+@app.route("/api/dashboard")
+@login_required
+def dashboard_data():
+
+    db = get_db()
+
+    try:
+
+        # -----------------------------------------
+        # Total contacts
+        # -----------------------------------------
+
+        contacts = db.execute("""
+            SELECT COUNT(*) AS count
+            FROM users
+            WHERE id != ?
+        """, (
+            current_user.id,
+        )).fetchone()["count"]
+
+        # -----------------------------------------
+        # People the current user has conversations
+        # with
+        # -----------------------------------------
+
+        conversations = db.execute("""
+            SELECT COUNT(*) AS count
+            FROM (
+                SELECT DISTINCT
+                    CASE
+                        WHEN sender_id = ?
+                        THEN receiver_id
+                        ELSE sender_id
+                    END AS user_id
+                FROM messages
+                WHERE
+                    sender_id = ?
+                    OR receiver_id = ?
+            )
+        """, (
+            current_user.id,
+            current_user.id,
+            current_user.id
+        )).fetchone()["count"]
+
+        # -----------------------------------------
+        # Unread notifications
+        # -----------------------------------------
+
+        unread = db.execute("""
+            SELECT COUNT(*) AS count
+            FROM notifications
+            WHERE user_id = ?
+            AND is_read = 0
+        """, (
+            current_user.id,
+        )).fetchone()["count"]
+
+        # -----------------------------------------
+        # Recent conversations
+        #
+        # Get the latest message exchanged with
+        # each person.
+        # -----------------------------------------
+
+        recent = db.execute("""
+            SELECT
+                other.id AS user_id,
+                other.username,
+                other.profile_image,
+                m.message,
+                m.message_type,
+                m.timestamp,
+                m.sender_id,
+                m.status
+            FROM messages m
+
+            JOIN users other
+            ON other.id =
+                CASE
+                    WHEN m.sender_id = ?
+                    THEN m.receiver_id
+                    ELSE m.sender_id
+                END
+
+            WHERE
+                m.sender_id = ?
+                OR m.receiver_id = ?
+
+            AND m.id IN (
+                SELECT MAX(m2.id)
+                FROM messages m2
+
+                WHERE
+                    (
+                        m2.sender_id = ?
+                        AND m2.receiver_id = other.id
+                    )
+                    OR
+                    (
+                        m2.sender_id = other.id
+                        AND m2.receiver_id = ?
+                    )
+            )
+
+            ORDER BY m.timestamp DESC
+
+            LIMIT 10
+        """, (
+            current_user.id,
+
+            current_user.id,
+            current_user.id,
+
+            current_user.id,
+            current_user.id
+        )).fetchall()
+
+        recent_conversations = []
+
+        for conversation in recent:
+
+            message_preview = conversation["message"] or ""
+
+            if conversation["message_type"] == "voice":
+                message_preview = "🎙 Voice message"
+
+            elif conversation["message_type"] == "image":
+                message_preview = "🖼 Image"
+
+            elif conversation["message_type"] == "file":
+                message_preview = "📎 File"
+
+            if len(message_preview) > 45:
+                message_preview = (
+                    message_preview[:45] + "..."
+                )
+
+            recent_conversations.append({
+
+                "user_id":
+                    conversation["user_id"],
+
+                "username":
+                    conversation["username"],
+
+                "profile_image":
+                    conversation["profile_image"]
+                    or "default.png",
+
+                "message":
+                    message_preview,
+
+                "timestamp":
+                    conversation["timestamp"],
+
+                "sender_id":
+                    conversation["sender_id"],
+
+                "status":
+                    conversation["status"],
+
+                "online":
+                    conversation["user_id"]
+                    in online_users
+            })
+
+        return jsonify({
+
+            "success": True,
+
+            "stats": {
+                "contacts": contacts,
+                "conversations": conversations,
+                "notifications": unread
+            },
+
+            "recent_conversations":
+                recent_conversations
+        })
+
+    except Exception as e:
+
+        print(
+            "❌ DASHBOARD API ERROR:",
+            e
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Unable to load dashboard data."
+        }), 500
+
+    finally:
+
+        db.close()
+
+
+# =========================================================
 # USERS
 # =========================================================
+
 
 @app.route("/users")
 @login_required
@@ -1516,6 +1719,247 @@ def send_message(data):
         receiver_id
     )
 
+# =========================================================
+# MESSAGE DELIVERED
+# =========================================================
+
+@socketio.on("message_delivered")
+def message_delivered(data):
+
+    if not current_user.is_authenticated:
+        return
+
+    try:
+        message_id = int(
+            data.get("message_id")
+        )
+    except (
+        TypeError,
+        ValueError
+    ):
+        print(
+            "❌ Invalid delivered message ID:",
+            data.get("message_id")
+        )
+        return
+
+    db = get_db()
+
+    try:
+
+        message = db.execute(
+            """
+            SELECT
+                id,
+                sender_id,
+                receiver_id,
+                status
+            FROM messages
+            WHERE id = ?
+            """,
+            (
+                message_id,
+            )
+        ).fetchone()
+
+        if not message:
+            return
+
+        sender_id = message["sender_id"]
+        receiver_id = message["receiver_id"]
+
+        # -----------------------------------------
+        # Only the actual receiver can acknowledge
+        # delivery.
+        # -----------------------------------------
+
+        if current_user.id != receiver_id:
+            print(
+                "❌ Unauthorized delivery acknowledgment:",
+                current_user.id,
+                "message:",
+                message_id
+            )
+            return
+
+        # -----------------------------------------
+        # Do not move a message backwards.
+        # -----------------------------------------
+
+        if message["status"] == "seen":
+            return
+
+        db.execute(
+            """
+            UPDATE messages
+            SET status = 'delivered'
+            WHERE id = ?
+            AND status = 'sent'
+            """,
+            (
+                message_id,
+            )
+        )
+
+        db.commit()
+
+        # -----------------------------------------
+        # Tell the sender that the message
+        # has been delivered.
+        # -----------------------------------------
+
+        socketio.emit(
+            "message_status",
+            {
+                "message_id":
+                    message_id,
+
+                "status":
+                    "delivered"
+            },
+            room=f"user_{sender_id}"
+        )
+
+        print(
+            "📬 Message delivered:",
+            message_id,
+            "to",
+            receiver_id
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "❌ MESSAGE DELIVERED ERROR:",
+            e
+        )
+
+    finally:
+
+        db.close()
+
+# =========================================================
+# MESSAGE SEEN
+# =========================================================
+
+@socketio.on("message_seen")
+def message_seen(data):
+
+    if not current_user.is_authenticated:
+        return
+
+    try:
+        message_id = int(
+            data.get("message_id")
+        )
+    except (
+        TypeError,
+        ValueError
+    ):
+        print(
+            "❌ Invalid seen message ID:",
+            data.get("message_id")
+        )
+        return
+
+    db = get_db()
+
+    try:
+
+        message = db.execute(
+            """
+            SELECT
+                id,
+                sender_id,
+                receiver_id,
+                status
+            FROM messages
+            WHERE id = ?
+            """,
+            (
+                message_id,
+            )
+        ).fetchone()
+
+        if not message:
+            return
+
+        sender_id = message["sender_id"]
+        receiver_id = message["receiver_id"]
+
+        # -----------------------------------------
+        # Only the actual receiver can mark a
+        # message as seen.
+        # -----------------------------------------
+
+        if current_user.id != receiver_id:
+            print(
+                "❌ Unauthorized seen acknowledgment:",
+                current_user.id,
+                "message:",
+                message_id
+            )
+            return
+
+        # -----------------------------------------
+        # Do not move a message backwards.
+        # -----------------------------------------
+
+        if message["status"] == "seen":
+            return
+
+        db.execute(
+            """
+            UPDATE messages
+            SET status = 'seen'
+            WHERE id = ?
+            AND status IN ('sent', 'delivered')
+            """,
+            (
+                message_id,
+            )
+        )
+
+        db.commit()
+
+        # -----------------------------------------
+        # Tell the sender that the message has
+        # been seen.
+        # -----------------------------------------
+
+        socketio.emit(
+            "message_status",
+            {
+                "message_id":
+                    message_id,
+
+                "status":
+                    "seen"
+            },
+            room=f"user_{sender_id}"
+        )
+
+        print(
+            "👀 Message seen:",
+            message_id,
+            "by",
+            receiver_id
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "❌ MESSAGE SEEN ERROR:",
+            e
+        )
+
+    finally:
+
+        db.close()
 
 # =========================================================
 # SEND VOICE MESSAGE

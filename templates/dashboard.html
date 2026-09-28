@@ -1,52 +1,2605 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>Dashboard | Nextura-E-Message</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Bootstrap -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- Bootstrap Icons -->
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    >
+
+    <style>
+
+        /* =====================================================
+           NEXTURA DASHBOARD
+           Brand colors intentionally preserved
+           Orange-red: #ff4500
+           Dark:       #151515
+        ===================================================== */
+
+        :root {
+            --nextura-orange: #ff4500;
+            --nextura-dark: #151515;
+            --nextura-dark-2: #1c1c1c;
+            --nextura-dark-3: #242424;
+            --nextura-border: rgba(255, 255, 255, 0.08);
+            --nextura-text: #f5f5f5;
+            --nextura-muted: #999999;
+            --nextura-hover: rgba(255, 69, 0, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+        }
+
+        body {
+            background:
+                radial-gradient(
+                    circle at top right,
+                    rgba(255, 69, 0, 0.08),
+                    transparent 30%
+                ),
+                var(--nextura-dark);
+
+            color: var(--nextura-text);
+
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                sans-serif;
+
+            overflow-x: hidden;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        /* =====================================================
+           APP LAYOUT
+        ===================================================== */
+
+        .nextura-app {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* =====================================================
+           SIDEBAR
+        ===================================================== */
+
+        .nextura-sidebar {
+            width: 260px;
+            min-width: 260px;
+            min-height: 100vh;
+
+            background: #111111;
+
+            border-right: 1px solid var(--nextura-border);
+
+            display: flex;
+            flex-direction: column;
+
+            padding: 24px 16px;
+
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+
+            z-index: 1000;
+
+            transition:
+                transform 0.3s ease,
+                width 0.3s ease;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+
+            padding: 4px 10px 28px;
+
+            color: white;
+        }
+
+        .brand-logo {
+            width: 42px;
+            height: 42px;
+
+            object-fit: cover;
+
+            border-radius: 12px;
+
+            margin-right: 10px;
+
+            border: 2px solid
+                rgba(255, 69, 0, 0.35);
+        }
+
+        .brand-name {
+            color: var(--nextura-orange);
+
+            font-size: 18px;
+            font-weight: 800;
+
+            letter-spacing: -0.3px;
+        }
+
+        .brand-subtitle {
+            display: block;
+
+            color: #666;
+
+            font-size: 10px;
+
+            margin-top: 1px;
+
+            letter-spacing: 0.8px;
+
+            text-transform: uppercase;
+        }
+
+        /* =====================================================
+           NAVIGATION
+        ===================================================== */
+
+        .sidebar-section-title {
+            color: #555;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            letter-spacing: 1.2px;
+
+            text-transform: uppercase;
+
+            padding: 0 12px;
+
+            margin: 4px 0 10px;
+        }
+
+        .nextura-nav {
+            display: flex;
+            flex-direction: column;
+
+            gap: 5px;
+        }
+
+        .nextura-nav-link {
+            display: flex;
+            align-items: center;
+
+            gap: 13px;
+
+            padding: 12px 13px;
+
+            border-radius: 10px;
+
+            color: #aaa;
+
+            font-size: 14px;
+
+            transition:
+                background 0.2s ease,
+                color 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .nextura-nav-link i {
+            font-size: 18px;
+
+            width: 22px;
+
+            text-align: center;
+        }
+
+        .nextura-nav-link:hover {
+            color: white;
+
+            background: var(--nextura-hover);
+
+            transform: translateX(2px);
+        }
+
+        .nextura-nav-link.active {
+            color: white;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255, 69, 0, 0.18),
+                    rgba(255, 69, 0, 0.05)
+                );
+
+            border-left: 3px solid
+                var(--nextura-orange);
+
+            padding-left: 10px;
+        }
+
+        .nextura-nav-link.active i {
+            color: var(--nextura-orange);
+        }
+
+        .nav-badge {
+            margin-left: auto;
+
+            min-width: 20px;
+            height: 20px;
+
+            padding: 0 6px;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 20px;
+
+            background: var(--nextura-orange);
+
+            color: white;
+
+            font-size: 10px;
+
+            font-weight: 700;
+        }
+
+        .sidebar-divider {
+            height: 1px;
+
+            background: var(--nextura-border);
+
+            margin: 22px 8px;
+        }
+
+        /* =====================================================
+           SIDEBAR BOTTOM
+        ===================================================== */
+
+        .sidebar-bottom {
+            margin-top: auto;
+        }
+
+        .sidebar-user {
+            display: flex;
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 12px;
+
+            border-radius: 12px;
+
+            background: #181818;
+
+            border: 1px solid
+                var(--nextura-border);
+
+            margin-bottom: 10px;
+        }
+
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+
+            border-radius: 50%;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--nextura-orange),
+                    #8f2500
+                );
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            color: white;
+
+            font-weight: 700;
+
+            flex-shrink: 0;
+        }
+
+        .sidebar-user-info {
+            min-width: 0;
+        }
+
+        .sidebar-user-name {
+            color: white;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-user-status {
+            display: flex;
+            align-items: center;
+
+            gap: 5px;
+
+            color: #777;
+
+            font-size: 11px;
+
+            margin-top: 2px;
+        }
+
+        .online-dot {
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: #777;
+
+            display: inline-block;
+        }
+
+        .online-dot.online {
+            background: #32c766;
+
+            box-shadow:
+                0 0 8px
+                rgba(50, 199, 102, 0.5);
+        }
+
+        .logout-link {
+            color: #888;
+        }
+
+        .logout-link:hover {
+            color: #ff5555;
+            background: rgba(255, 0, 0, 0.08);
+        }
+
+        /* =====================================================
+           MAIN CONTENT
+        ===================================================== */
+
+        .nextura-main {
+            width: calc(100% - 260px);
+
+            margin-left: 260px;
+
+            min-height: 100vh;
+
+            padding: 28px 34px 40px;
+        }
+
+        /* =====================================================
+           TOP BAR
+        ===================================================== */
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 32px;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+
+            width: 42px;
+            height: 42px;
+
+            border: 1px solid var(--nextura-border);
+
+            background: var(--nextura-dark-2);
+
+            color: white;
+
+            border-radius: 10px;
+        }
+
+        .mobile-menu-btn:hover {
+            color: var(--nextura-orange);
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+
+            gap: 10px;
+        }
+
+        .icon-btn {
+            width: 42px;
+            height: 42px;
+
+            border: 1px solid var(--nextura-border);
+
+            border-radius: 10px;
+
+            background: var(--nextura-dark-2);
+
+            color: #aaa;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            transition: 0.2s ease;
+
+            position: relative;
+        }
+
+        .icon-btn:hover {
+            color: var(--nextura-orange);
+
+            border-color:
+                rgba(255, 69, 0, 0.35);
+
+            background: var(--nextura-hover);
+        }
+
+        .notification-dot {
+            position: absolute;
+
+            width: 7px;
+            height: 7px;
+
+            background: var(--nextura-orange);
+
+            border-radius: 50%;
+
+            right: 8px;
+            top: 7px;
+        }
+
+        /* =====================================================
+           WELCOME
+        ===================================================== */
+
+        .welcome-section {
+            margin-bottom: 28px;
+        }
+
+        .welcome-label {
+            color: #777;
+
+            font-size: 13px;
+
+            margin-bottom: 5px;
+        }
+
+        .welcome-title {
+            margin: 0;
+
+            font-size: clamp(
+                26px,
+                4vw,
+                36px
+            );
+
+            font-weight: 700;
+
+            color: white;
+
+            letter-spacing: -1px;
+        }
+
+        .welcome-title span {
+            color: var(--nextura-orange);
+        }
+
+        .welcome-description {
+            color: #777;
+
+            font-size: 14px;
+
+            margin-top: 8px;
+        }
+
+        /* =====================================================
+           STAT CARDS
+        ===================================================== */
+
+        .stats-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 16px;
+
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background:
+                linear-gradient(
+                    145deg,
+                    #1d1d1d,
+                    #171717
+                );
+
+            border: 1px solid
+                var(--nextura-border);
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            min-height: 125px;
+
+            position: relative;
+
+            overflow: hidden;
+
+            transition:
+                transform 0.2s ease,
+                border-color 0.2s ease;
+        }
+
+        .stat-card::after {
+            content: "";
+
+            position: absolute;
+
+            width: 100px;
+            height: 100px;
+
+            right: -40px;
+            bottom: -50px;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255, 69, 0, 0.13),
+                    transparent 70%
+                );
+
+            pointer-events: none;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+
+            border-color:
+                rgba(255, 69, 0, 0.28);
+        }
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+
+            border-radius: 10px;
+
+            background:
+                rgba(255, 69, 0, 0.10);
+
+            color: var(--nextura-orange);
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 19px;
+
+            margin-bottom: 13px;
+        }
+
+        .stat-label {
+            color: #777;
+
+            font-size: 12px;
+
+            margin-bottom: 3px;
+        }
+
+        .stat-value {
+            color: white;
+
+            font-size: 22px;
+
+            font-weight: 700;
+        }
+
+        /* =====================================================
+           CONTENT GRID
+        ===================================================== */
+
+        .content-grid {
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                320px;
+
+            gap: 20px;
+
+            align-items: start;
+        }
+
+        .dashboard-card {
+            background: #191919;
+
+            border: 1px solid
+                var(--nextura-border);
+
+            border-radius: 15px;
+
+            overflow: hidden;
+        }
+
+        .card-header-custom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 19px 20px;
+
+            border-bottom: 1px solid
+                var(--nextura-border);
+        }
+
+        .card-title-custom {
+            margin: 0;
+
+            font-size: 15px;
+
+            font-weight: 650;
+
+            color: white;
+        }
+
+        .card-link {
+            color: var(--nextura-orange);
+
+            font-size: 12px;
+
+            font-weight: 600;
+        }
+
+        .card-link:hover {
+            color: #ff7040;
+        }
+
+        /* =====================================================
+           RECENT CHATS
+        ===================================================== */
+
+        .chat-list {
+            padding: 6px 0;
+        }
+
+        .empty-chat-state {
+            text-align: center;
+
+            padding: 45px 20px;
+
+            color: #666;
+        }
+
+        .empty-chat-icon {
+            width: 55px;
+            height: 55px;
+
+            margin: 0 auto 14px;
+
+            border-radius: 50%;
+
+            background:
+                rgba(255, 69, 0, 0.08);
+
+            color: var(--nextura-orange);
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 23px;
+        }
+
+        .empty-chat-state h6 {
+            color: #bbb;
+
+            margin-bottom: 5px;
+        }
+
+        .empty-chat-state p {
+            font-size: 12px;
+
+            margin: 0 0 18px;
+        }
+
+        .find-users-btn {
+            display: inline-flex;
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 9px 14px;
+
+            background: var(--nextura-orange);
+
+            color: white;
+
+            border: 0;
+
+            border-radius: 8px;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            transition: 0.2s ease;
+        }
+
+        .find-users-btn:hover {
+            background: #e63e00;
+
+            color: white;
+
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           QUICK ACTIONS
+        ===================================================== */
+
+        .quick-actions {
+            padding: 10px;
+        }
+
+        .quick-action {
+            display: flex;
+            align-items: center;
+
+            gap: 12px;
+
+            padding: 13px 10px;
+
+            border-radius: 10px;
+
+            color: #aaa;
+
+            transition: 0.2s ease;
+        }
+
+        .quick-action:hover {
+            color: white;
+
+            background: var(--nextura-hover);
+        }
+
+        .quick-action-icon {
+            width: 38px;
+            height: 38px;
+
+            border-radius: 9px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background:
+                rgba(255, 69, 0, 0.09);
+
+            color: var(--nextura-orange);
+
+            font-size: 17px;
+
+            flex-shrink: 0;
+        }
+
+        .quick-action-text {
+            min-width: 0;
+        }
+
+        .quick-action-title {
+            color: #ddd;
+
+            font-size: 13px;
+
+            font-weight: 600;
+        }
+
+        .quick-action-description {
+            color: #666;
+
+            font-size: 10px;
+
+            margin-top: 2px;
+        }
+
+        /* =====================================================
+           ONLINE STATUS PANEL
+        ===================================================== */
+
+        .status-panel {
+            padding: 16px 20px;
+
+            border-bottom: 1px solid
+                var(--nextura-border);
+        }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+
+            justify-content: space-between;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+
+            gap: 10px;
+        }
+
+        .large-status-dot {
+            width: 10px;
+            height: 10px;
+
+            border-radius: 50%;
+
+            background: #777;
+        }
+
+        .large-status-dot.online {
+            background: #32c766;
+
+            box-shadow:
+                0 0 9px
+                rgba(50, 199, 102, 0.45);
+        }
+
+        .status-label {
+            color: #bbb;
+
+            font-size: 13px;
+        }
+
+        .status-value {
+            color: #777;
+
+            font-size: 12px;
+        }
+
+        /* =====================================================
+           SIDEBAR OVERLAY
+        ===================================================== */
+
+        .sidebar-overlay {
+            display: none;
+
+            position: fixed;
+
+            inset: 0;
+
+            background:
+                rgba(0, 0, 0, 0.65);
+
+            z-index: 999;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
+        @media (max-width: 1100px) {
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+        @media (max-width: 850px) {
+
+            .nextura-sidebar {
+                transform:
+                    translateX(-100%);
+            }
+
+            .nextura-sidebar.open {
+                transform:
+                    translateX(0);
+            }
+
+            .nextura-main {
+                width: 100%;
+
+                margin-left: 0;
+
+                padding:
+                    20px;
+            }
+
+            .mobile-menu-btn {
+                display: inline-flex;
+
+                align-items: center;
+                justify-content: center;
+            }
+
+            .topbar {
+                gap: 12px;
+            }
+
+            .stats-grid {
+                grid-template-columns:
+                    repeat(3, 1fr);
+            }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .nextura-main {
+                padding:
+                    16px 13px 30px;
+            }
+
+            .topbar {
+                margin-bottom: 25px;
+            }
+
+            .topbar-right {
+                gap: 6px;
+            }
+
+            .icon-btn {
+                width: 38px;
+                height: 38px;
+            }
+
+            .stats-grid {
+                grid-template-columns:
+                    1fr;
+
+                gap: 10px;
+            }
+
+            .stat-card {
+                min-height: auto;
+
+                padding: 16px;
+
+                display: flex;
+                align-items: center;
+
+                gap: 13px;
+            }
+
+            .stat-icon {
+                margin: 0;
+
+                flex-shrink: 0;
+            }
+
+            .stat-content {
+                display: block;
+            }
+
+            .content-grid {
+                gap: 14px;
+            }
+
+            .welcome-title {
+                font-size: 27px;
+            }
+
+        }
+
+    
+
+
+/* =========================================================
+   NEXTURA — LIVE RECENT CONVERSATIONS
+   ========================================================= */
+
+.recent-conversations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.dashboard-conversation {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    background: transparent;
+    border: 1px solid transparent;
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.dashboard-conversation:hover {
+    color: inherit;
+    background: rgba(255, 69, 0, 0.055);
+    border-color: rgba(255, 69, 0, 0.12);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+}
+
+.conversation-avatar-wrapper {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.conversation-avatar {
+    width: 52px !important;
+    height: 52px !important;
+    max-width: 52px !important;
+    max-height: 52px !important;
+    min-width: 52px !important;
+    min-height: 52px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    border: 2px solid rgba(255, 69, 0, 0.12);
+    background: #151515;
+}
+
+.conversation-online-dot {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #9ca3af;
+    border: 3px solid #fff;
+    box-sizing: border-box;
+}
+
+.conversation-online-dot.online {
+    background: #22c55e;
+}
+
+.conversation-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.conversation-top,
+.conversation-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+}
+
+.conversation-top strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: #151515;
+}
+
+.conversation-time {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+.conversation-bottom {
+    margin-top: 4px;
+}
+
+.conversation-preview {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #6b7280;
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+
+/* Dark mode */
+[data-theme="dark"] .dashboard-conversation:hover {
+    background: rgba(255, 69, 0, 0.10);
+    border-color: rgba(255, 69, 0, 0.18);
+}
+
+[data-theme="dark"] .conversation-top strong {
+    color: #f5f5f5;
+}
+
+[data-theme="dark"] .conversation-preview {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .conversation-online-dot {
+    border-color: #151515;
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+
+    .dashboard-conversation {
+        padding: 12px 10px;
+        gap: 12px;
+        border-radius: 14px;
+    }
+
+    .conversation-avatar {
+        width: 46px;
+        height: 46px;
+    }
+
+    .conversation-online-dot {
+        width: 12px;
+        height: 12px;
+    }
+
+    .conversation-top strong {
+        font-size: 0.9rem;
+    }
+
+    .conversation-preview {
+        font-size: 0.78rem;
+    }
+
+    .conversation-time {
+        font-size: 0.66rem;
+    }
+}
+
+</style>
 </head>
-<body class="bg-dark">
-<nav class="navbar navbar-expand-lg navbar-dark" style="background-color:#151515;">
-    <div class="container">
-        <a class="navbar-brand d-flex align-items-center" href="/dashboard">
-             <img src="{{ url_for('static', filename='images/WhatsApp Image 2026-01-15 at 7.21.47 PM.jpeg') }}"
-                 width="30" height="30" class="me-2">
-            <span style="color:#ff4500; font-weight:bold;">Nextura-E-Message</span>
+
+<body>
+
+<div class="nextura-app">
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside
+        id="nexturaSidebar"
+        class="nextura-sidebar"
+    >
+
+        <!-- Brand -->
+
+        <a
+            href="/dashboard"
+            class="brand"
+        >
+
+            <img
+                src="{{ url_for('static', filename='images/WhatsApp Image 2026-01-15 at 7.21.47 PM.jpeg') }}"
+                alt="Nextura"
+                class="brand-logo"
+            >
+
+            <div>
+                <div class="brand-name">
+                    Nextura-E-Message
+                </div>
+
+                <span class="brand-subtitle">
+                    Connect. Message. Nextura.
+                </span>
+            </div>
+
         </a>
-        <div class="ms-auto d-flex align-items-center">
-            <span id="status-dot" class="me-3" style="width:12px; height:12px; border-radius:50%; display:inline-block; background-color:gray;"></span>
-            <span id="status-text" class="me-3">Offline</span>
-            <a href="/logout" class="btn btn-outline-warning btn-sm">Logout</a>
+
+
+        <!-- Main Navigation -->
+
+        <div class="sidebar-section-title">
+            Main
         </div>
-    </div>
-</nav>
 
-<div class="container mt-5">
-    <div class="text-center mb-5">
-        <h1 style="color:#ff4500;">Nextura-E-Message</h1>
-        <p class="text-gray">Welcome, {{ username }} 👋</p>
-    </div>
+        <nav class="nextura-nav">
 
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <!-- Dashboard Cards -->
-            <div class="card mb-3 shadow-sm">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <span>View Users</span>
-                    <a href="/users" class="btn btn-outline-warning">Go</a>
+            <a
+                href="/dashboard"
+                class="nextura-nav-link active"
+            >
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a
+                href="/users"
+                class="nextura-nav-link"
+            >
+                <i class="bi bi-chat-dots-fill"></i>
+                <span>Messages</span>
+            </a>
+
+            <a
+                href="/users"
+                class="nextura-nav-link"
+            >
+                <i class="bi bi-people-fill"></i>
+                <span>Contacts</span>
+            </a>
+
+            <a
+                href="/dashboard"
+                class="nextura-nav-link"
+                id="notifications-link"
+            >
+                <i class="bi bi-bell-fill"></i>
+                <span>Notifications</span>
+                <span
+                    id="notification-badge"
+                    class="nav-badge"
+                    style="display:none;"
+                >
+                    0
+                </span>
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-divider"></div>
+
+
+        <!-- Account Navigation -->
+
+        <div class="sidebar-section-title">
+            Account
+        </div>
+
+        <nav class="nextura-nav">
+
+            <a
+                href="/dashboard"
+                class="nextura-nav-link"
+            >
+                <i class="bi bi-person-circle"></i>
+                <span>Profile</span>
+            </a>
+
+            <a
+                href="/dashboard"
+                class="nextura-nav-link"
+                id="theme-toggle-link"
+            >
+                <i class="bi bi-moon-stars-fill"></i>
+                <span>Appearance</span>
+            </a>
+
+        </nav>
+
+
+        <!-- Sidebar Bottom -->
+
+        <div class="sidebar-bottom">
+
+            <div class="sidebar-user">
+
+                <div class="user-avatar">
+                    {{ username[:1]|upper }}
                 </div>
+
+                <div class="sidebar-user-info">
+
+                    <div class="sidebar-user-name">
+                        {{ username }}
+                    </div>
+
+                    <div class="sidebar-user-status">
+
+                        <span
+                            id="sidebar-status-dot"
+                            class="online-dot"
+                        ></span>
+
+                        <span id="sidebar-status-text">
+                            Offline
+                        </span>
+
+                    </div>
+
+                </div>
+
             </div>
 
-            <div class="card mb-3 shadow-sm">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <span>Logout</span>
-                    <a href="/logout" class="btn btn-outline-danger">Exit</a>
-                </div>
-            </div>
+
+            <a
+                href="/logout"
+                class="nextura-nav-link logout-link"
+            >
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </a>
+
         </div>
-    </div>
+
+    </aside>
+
+
+    <!-- Sidebar overlay -->
+
+    <div
+        id="sidebarOverlay"
+        class="sidebar-overlay"
+    ></div>
+
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
+    <main class="nextura-main">
+
+        <!-- Topbar -->
+
+        <header class="topbar">
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:10px;
+                "
+            >
+
+                <button
+                    id="mobileMenuBtn"
+                    class="mobile-menu-btn"
+                    type="button"
+                    aria-label="Open menu"
+                >
+                    <i class="bi bi-list"></i>
+                </button>
+
+                <div
+                    class="d-none d-md-block"
+                    style="color:#666; font-size:13px;"
+                >
+                    Dashboard
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button
+                    type="button"
+                    class="icon-btn"
+                    title="Notifications"
+                    id="notificationButton"
+                >
+                    <i class="bi bi-bell"></i>
+
+                    <span
+                        id="top-notification-dot"
+                        class="notification-dot"
+                        style="display:none;"
+                    ></span>
+                </button>
+
+                <button
+                    type="button"
+                    class="icon-btn"
+                    title="Appearance"
+                    id="top-theme-button"
+                >
+                    <i
+                        id="theme-icon"
+                        class="bi bi-moon-stars"
+                    ></i>
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- =================================================
+             WELCOME
+        ================================================== -->
+
+        <section class="welcome-section">
+
+            <div class="welcome-label">
+                Welcome back
+            </div>
+
+            <h1 class="welcome-title">
+                Hello,
+                <span>{{ username }}</span>
+                👋
+            </h1>
+
+            <p class="welcome-description">
+                Stay connected and keep your conversations moving.
+            </p>
+
+        </section>
+
+
+        <!-- =================================================
+             STATS
+        ================================================== -->
+
+        <section class="stats-grid">
+
+            <!-- Messages -->
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    <i class="bi bi-chat-dots-fill"></i>
+                </div>
+
+                <div class="stat-content">
+
+                    <div class="stat-label">
+                        Conversations
+                    </div>
+
+                    <div
+                        id="conversation-count"
+                        class="stat-value"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Contacts -->
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+
+                <div class="stat-content">
+
+                    <div class="stat-label">
+                        Contacts
+                    </div>
+
+                    <div
+                        id="contact-count"
+                        class="stat-value"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Notifications -->
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    <i class="bi bi-bell-fill"></i>
+                </div>
+
+                <div class="stat-content">
+
+                    <div class="stat-label">
+                        Notifications
+                    </div>
+
+                    <div
+                        id="notification-count"
+                        class="stat-value"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             CONTENT
+        ================================================== -->
+
+        <section class="content-grid">
+
+
+            <!-- =================================================
+                 RECENT CONVERSATIONS
+            ================================================== -->
+
+            <div class="dashboard-card">
+
+                <div class="card-header-custom">
+
+                    <h2 class="card-title-custom">
+                        Recent Conversations
+                    </h2>
+
+                    <a
+                        href="/users"
+                        class="card-link"
+                    >
+                        View all
+                    </a>
+
+                </div>
+
+
+                <div class="chat-list">
+
+                    <!--
+
+                        The current backend does not yet provide
+                        a dashboard conversation list.
+
+                        We intentionally keep this as an empty
+                        state instead of inventing fake chats.
+
+                    -->
+
+                    <div
+                        id="recent-conversations"
+                        class="recent-conversations-list"
+                    >
+
+                        <div class="empty-chat-state">
+
+                            <div class="empty-chat-icon">
+                                <i class="bi bi-chat-heart-fill"></i>
+                            </div>
+
+                            <h6>
+                                Loading conversations...
+                            </h6>
+
+                            <p>
+                                Getting your latest messages.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 RIGHT PANEL
+            ================================================== -->
+
+            <div>
+
+
+                <!-- Online status -->
+
+                <div
+                    class="dashboard-card"
+                    style="margin-bottom:20px;"
+                >
+
+                    <div class="card-header-custom">
+
+                        <h2 class="card-title-custom">
+                            Your Status
+                        </h2>
+
+                    </div>
+
+                    <div class="status-panel">
+
+                        <div class="status-row">
+
+                            <div class="status-info">
+
+                                <span
+                                    id="status-dot"
+                                    class="large-status-dot"
+                                ></span>
+
+                                <span
+                                    id="status-text"
+                                    class="status-label"
+                                >
+                                    Offline
+                                </span>
+
+                            </div>
+
+                            <span class="status-value">
+                                Account
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Quick actions -->
+
+                <div class="dashboard-card">
+
+                    <div class="card-header-custom">
+
+                        <h2 class="card-title-custom">
+                            Quick Actions
+                        </h2>
+
+                    </div>
+
+
+                    <div class="quick-actions">
+
+                        <a
+                            href="/users"
+                            class="quick-action"
+                        >
+
+                            <div class="quick-action-icon">
+                                <i class="bi bi-chat-left-text-fill"></i>
+                            </div>
+
+                            <div class="quick-action-text">
+
+                                <div class="quick-action-title">
+                                    New Message
+                                </div>
+
+                                <div class="quick-action-description">
+                                    Start a conversation
+                                </div>
+
+                            </div>
+
+                        </a>
+
+
+                        <a
+                            href="/users"
+                            class="quick-action"
+                        >
+
+                            <div class="quick-action-icon">
+                                <i class="bi bi-person-lines-fill"></i>
+                            </div>
+
+                            <div class="quick-action-text">
+
+                                <div class="quick-action-title">
+                                    Find People
+                                </div>
+
+                                <div class="quick-action-description">
+                                    Browse Nextura users
+                                </div>
+
+                            </div>
+
+                        </a>
+
+
+                        <a
+                            href="/dashboard"
+                            class="quick-action"
+                            id="quick-notifications"
+                        >
+
+                            <div class="quick-action-icon">
+                                <i class="bi bi-bell-fill"></i>
+                            </div>
+
+                            <div class="quick-action-text">
+
+                                <div class="quick-action-title">
+                                    Notifications
+                                </div>
+
+                                <div class="quick-action-description">
+                                    Check your latest alerts
+                                </div>
+
+                            </div>
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
 </div>
-<script src="{{ url_for('static', filename='theme.js') }}"></script>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+
+<script>
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            const sidebar =
+                document.getElementById(
+                    "nexturaSidebar"
+                );
+
+            const overlay =
+                document.getElementById(
+                    "sidebarOverlay"
+                );
+
+            const menuButton =
+                document.getElementById(
+                    "mobileMenuBtn"
+                );
+
+
+            function openSidebar() {
+
+                if (!sidebar) {
+                    return;
+                }
+
+                sidebar.classList.add(
+                    "open"
+                );
+
+                if (overlay) {
+                    overlay.classList.add(
+                        "show"
+                    );
+                }
+            }
+
+
+            function closeSidebar() {
+
+                if (!sidebar) {
+                    return;
+                }
+
+                sidebar.classList.remove(
+                    "open"
+                );
+
+                if (overlay) {
+                    overlay.classList.remove(
+                        "show"
+                    );
+                }
+            }
+
+
+            if (menuButton) {
+
+                menuButton.addEventListener(
+                    "click",
+                    openSidebar
+                );
+
+            }
+
+
+            if (overlay) {
+
+                overlay.addEventListener(
+                    "click",
+                    closeSidebar
+                );
+
+            }
+
+
+            /*
+             * Close mobile sidebar when
+             * navigating to another page.
+             */
+
+            document
+                .querySelectorAll(
+                    ".nextura-nav-link"
+                )
+                .forEach(
+                    function (link) {
+
+                        link.addEventListener(
+                            "click",
+                            closeSidebar
+                        );
+
+                    }
+                );
+
+
+            /* =================================================
+               THEME BUTTON
+            ================================================= */
+
+            const themeButton =
+                document.getElementById(
+                    "top-theme-button"
+                );
+
+            const themeLink =
+                document.getElementById(
+                    "theme-toggle-link"
+                );
+
+            const themeIcon =
+                document.getElementById(
+                    "theme-icon"
+                );
+
+
+            function triggerTheme() {
+
+                /*
+                 * Your existing theme.js remains responsible
+                 * for the actual theme system.
+                 */
+
+                if (
+                    typeof window.toggleTheme ===
+                    "function"
+                ) {
+
+                    window.toggleTheme();
+
+                    return;
+                }
+
+                /*
+                 * If theme.js exposes a button-based
+                 * toggle instead, try to trigger it.
+                 */
+
+                const existingThemeButton =
+                    document.querySelector(
+                        "[data-theme-toggle]"
+                    );
+
+                if (existingThemeButton) {
+
+                    existingThemeButton.click();
+
+                    return;
+                }
+
+                /*
+                 * Do not alter the existing application
+                 * theme system if no toggle exists.
+                 */
+
+                console.log(
+                    "Nextura theme controller not found."
+                );
+            }
+
+
+            if (themeButton) {
+
+                themeButton.addEventListener(
+                    "click",
+                    triggerTheme
+                );
+
+            }
+
+
+            if (themeLink) {
+
+                themeLink.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        triggerTheme();
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               NOTIFICATION COUNT
+            ================================================= */
+
+            async function loadNotificationCount() {
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "/api/notifications"
+                        );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data =
+                        await response.json();
+
+
+                    const count =
+                        Number(
+                            data.unread_count || 0
+                        );
+
+
+                    const countElement =
+                        document.getElementById(
+                            "notification-count"
+                        );
+
+                    const badge =
+                        document.getElementById(
+                            "notification-badge"
+                        );
+
+                    const dot =
+                        document.getElementById(
+                            "top-notification-dot"
+                        );
+
+
+                    if (countElement) {
+
+                        countElement.textContent =
+                            count;
+
+                    }
+
+
+                    if (badge) {
+
+                        if (count > 0) {
+
+                            badge.textContent =
+                                count > 99
+                                    ? "99+"
+                                    : count;
+
+                            badge.style.display =
+                                "inline-flex";
+
+                        } else {
+
+                            badge.style.display =
+                                "none";
+
+                        }
+
+                    }
+
+
+                    if (dot) {
+
+                        dot.style.display =
+                            count > 0
+                                ? "block"
+                                : "none";
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Nextura notification error:",
+                        error
+                    );
+
+                }
+
+            }
+
+
+            loadNotificationCount();
+
+
+            /*
+             * Refresh notification count periodically.
+             * This does not modify chat functionality.
+             */
+
+            setInterval(
+                loadNotificationCount,
+                30000
+            );
+
+
+            /* =================================================
+               NOTIFICATION BUTTON
+            ================================================= */
+
+            const notificationButton =
+                document.getElementById(
+                    "notificationButton"
+                );
+
+            const notificationLink =
+                document.getElementById(
+                    "notifications-link"
+                );
+
+            const quickNotifications =
+                document.getElementById(
+                    "quick-notifications"
+                );
+
+
+            function openNotifications() {
+
+                /*
+                 * If your existing notification panel
+                 * is available later, this can be connected
+                 * directly to it.
+
+                 * For now, notifications live through
+                 * the existing dashboard endpoint.
+                 */
+
+                window.location.href =
+                    "/dashboard";
+
+            }
+
+
+            if (notificationButton) {
+
+                notificationButton.addEventListener(
+                    "click",
+                    openNotifications
+                );
+
+            }
+
+
+            if (notificationLink) {
+
+                notificationLink.addEventListener(
+                    "click",
+                    function () {
+
+                        /*
+                         * Keep current dashboard navigation
+                         * behavior safe.
+                         */
+
+                    }
+                );
+
+            }
+
+
+            if (quickNotifications) {
+
+                quickNotifications.addEventListener(
+                    "click",
+                    function () {
+
+                        /*
+                         * Existing backend route is preserved.
+                         */
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               STATUS
+            ================================================= */
+
+            /*
+             * The dashboard does not create a new Socket.IO
+             * system here.
+
+             * This keeps the current chat Socket.IO system
+             * untouched while the dashboard UI is rebuilt.
+             */
+
+            const statusDot =
+                document.getElementById(
+                    "status-dot"
+                );
+
+            const statusText =
+                document.getElementById(
+                    "status-text"
+                );
+
+            const sidebarStatusDot =
+                document.getElementById(
+                    "sidebar-status-dot"
+                );
+
+            const sidebarStatusText =
+                document.getElementById(
+                    "sidebar-status-text"
+                );
+
+
+            function setDashboardStatus(
+                online
+            ) {
+
+                if (statusDot) {
+
+                    statusDot.classList.toggle(
+                        "online",
+                        online
+                    );
+
+                }
+
+
+                if (sidebarStatusDot) {
+
+                    sidebarStatusDot.classList.toggle(
+                        "online",
+                        online
+                    );
+
+                }
+
+
+                if (statusText) {
+
+                    statusText.textContent =
+                        online
+                            ? "Online"
+                            : "Offline";
+
+                }
+
+
+                if (sidebarStatusText) {
+
+                    sidebarStatusText.textContent =
+                        online
+                            ? "Online"
+                            : "Offline";
+
+                }
+
+            }
+
+
+            /*
+             * Keep the existing dashboard behavior safe.
+             * The status starts offline until an existing
+             * Socket.IO implementation reports otherwise.
+             */
+
+            setDashboardStatus(false);
+
+
+            console.log(
+                "🚀 Nextura dashboard initialized."
+            );
+
+        }
+    );
+
+</script>
+
+
+<!-- Existing theme system -->
+<script
+    src="{{ url_for('static', filename='theme.js') }}"
+></script>
+
+
+<!-- Bootstrap JS -->
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    console.log("🚀 Loading live Nextura dashboard data...");
+
+    const conversationCount =
+        document.getElementById("conversation-count");
+
+    const contactCount =
+        document.getElementById("contact-count");
+
+    const notificationCount =
+        document.getElementById("notification-count");
+
+    const recentConversations =
+        document.getElementById("recent-conversations");
+
+
+    function escapeHtml(value) {
+
+        const div = document.createElement("div");
+
+        div.textContent = value ?? "";
+
+        return div.innerHTML;
+    }
+
+
+    function formatTime(timestamp) {
+
+        if (!timestamp) {
+            return "";
+        }
+
+        const date = new Date(
+            timestamp.replace(" ", "T") + "Z"
+        );
+
+        if (Number.isNaN(date.getTime())) {
+            return timestamp;
+        }
+
+        const now = new Date();
+
+        const diff =
+            Math.floor(
+                (now - date) / 1000
+            );
+
+        if (diff < 60) {
+            return "Just now";
+        }
+
+        if (diff < 3600) {
+            return Math.floor(diff / 60) + "m";
+        }
+
+        if (diff < 86400) {
+            return Math.floor(diff / 3600) + "h";
+        }
+
+        if (diff < 604800) {
+            return Math.floor(diff / 86400) + "d";
+        }
+
+        return date.toLocaleDateString(
+            undefined,
+            {
+                day: "numeric",
+                month: "short"
+            }
+        );
+    }
+
+
+    function renderConversations(conversations) {
+
+        if (!recentConversations) {
+            return;
+        }
+
+        if (
+            !conversations ||
+            conversations.length === 0
+        ) {
+
+            recentConversations.innerHTML = `
+
+                <div class="empty-chat-state">
+
+                    <div class="empty-chat-icon">
+                        <i class="bi bi-chat-heart-fill"></i>
+                    </div>
+
+                    <h6>
+                        No conversations yet
+                    </h6>
+
+                    <p>
+                        Find someone and start your first
+                        Nextura conversation.
+                    </p>
+
+                    <a
+                        href="/users"
+                        class="find-users-btn"
+                    >
+                        <i class="bi bi-person-plus-fill"></i>
+                        Find People
+                    </a>
+
+                </div>
+
+            `;
+
+            return;
+        }
+
+
+        recentConversations.innerHTML =
+            conversations.map(function (chat) {
+
+                const avatar =
+                    chat.profile_image &&
+                    chat.profile_image !== "default.png"
+
+                    ? `/static/uploads/avatars/${encodeURIComponent(chat.profile_image)}`
+
+                    : `/static/uploads/avatars/default.png`;
+
+
+                const preview =
+                    escapeHtml(
+                        chat.message || "New conversation"
+                    );
+
+
+                const username =
+                    escapeHtml(
+                        chat.username || "User"
+                    );
+
+
+                const onlineClass =
+                    chat.online
+                    ? "online"
+                    : "";
+
+
+                const onlineTitle =
+                    chat.online
+                    ? "Online"
+                    : "Offline";
+
+
+                return `
+
+                    <a
+                        href="/chat/${chat.user_id}"
+                        class="dashboard-conversation"
+                    >
+
+                        <div class="conversation-avatar-wrapper">
+
+                            <img
+                                src="${avatar}"
+                                alt="${username}"
+                                class="conversation-avatar"
+                                style="width:52px !important;height:52px !important;max-width:52px !important;max-height:52px !important;min-width:52px !important;min-height:52px !important;object-fit:cover !important;display:block !important;"
+                                onerror="this.src='/static/uploads/avatars/default.png'"
+                            >
+
+                            <span
+                                class="conversation-online-dot ${onlineClass}"
+                                title="${onlineTitle}"
+                            ></span>
+
+                        </div>
+
+
+                        <div class="conversation-main">
+
+                            <div class="conversation-top">
+
+                                <strong>
+                                    ${username}
+                                </strong>
+
+                                <span class="conversation-time">
+                                    ${formatTime(chat.timestamp)}
+                                </span>
+
+                            </div>
+
+
+                            <div class="conversation-bottom">
+
+                                <span class="conversation-preview">
+                                    ${preview}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </a>
+
+                `;
+
+            }).join("");
+    }
+
+
+    async function loadDashboard() {
+
+        try {
+
+            const response =
+                await fetch("/api/dashboard", {
+                    credentials: "same-origin"
+                });
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Dashboard API returned " +
+                    response.status
+                );
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (!data.success) {
+
+                throw new Error(
+                    data.error ||
+                    "Dashboard data failed."
+                );
+
+            }
+
+
+            if (conversationCount) {
+
+                conversationCount.textContent =
+                    data.stats.conversations;
+
+            }
+
+
+            if (contactCount) {
+
+                contactCount.textContent =
+                    data.stats.contacts;
+
+            }
+
+
+            if (notificationCount) {
+
+                notificationCount.textContent =
+                    data.stats.notifications;
+
+            }
+
+
+            renderConversations(
+                data.recent_conversations
+            );
+
+
+            console.log(
+                "✅ Dashboard data loaded:",
+                data
+            );
+
+        } catch (error) {
+
+            console.error(
+                "❌ Dashboard loading error:",
+                error
+            );
+
+
+            if (recentConversations) {
+
+                recentConversations.innerHTML = `
+
+                    <div class="empty-chat-state">
+
+                        <div class="empty-chat-icon">
+                            <i class="bi bi-exclamation-circle"></i>
+                        </div>
+
+                        <h6>
+                            Unable to load conversations
+                        </h6>
+
+                        <p>
+                            Please refresh the page and try again.
+                        </p>
+
+                    </div>
+
+                `;
+
+            }
+
+        }
+
+    }
+
+
+    loadDashboard();
+
+
+    // Refresh dashboard data every 30 seconds.
+
+    setInterval(
+        loadDashboard,
+        30000
+    );
+
+});
+</script>
 
 </body>
 </html>
+
