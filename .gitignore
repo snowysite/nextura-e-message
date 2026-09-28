@@ -8,3 +8,5 @@ document
 document.pub
 static/uploads/
 database.db
+migrate_to_postgres.py
+*.before-*
